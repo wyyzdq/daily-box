@@ -685,6 +685,42 @@ button {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
+.password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrap .input {
+  padding-right: 58px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  min-width: 40px;
+  min-height: 32px;
+  transform: translateY(-50%);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--muted);
+  font-weight: 820;
+  font-size: 13px;
+}
+
+.password-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+}
+
+.forgot-btn {
+  padding: 0 4px;
+  color: color-mix(in srgb, var(--control) 72%, var(--muted));
+}
+
 .textarea {
   min-height: 88px;
   resize: vertical;

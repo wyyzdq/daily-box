@@ -431,7 +431,10 @@ function renderCloudSyncCard() {
         !email
           ? `<form class="form" data-action="cloud-login">
               ${textField("email", "邮箱", meta.email || "", "you@example.com")}
-              <div class="field"><label>密码</label><input class="input" type="password" name="password" autocomplete="current-password" placeholder="至少 6 位" /></div>
+              ${passwordField("password", "密码", "至少 6 位", "current-password")}
+              <div class="password-tools">
+                <button class="link-btn forgot-btn" type="button" data-action="forgot-password">忘记密码？</button>
+              </div>
               <div class="actions-row">
                 <button class="primary" type="submit" name="cloudMode" value="login">登录</button>
                 <button class="secondary" type="submit" name="cloudMode" value="signup">注册</button>
@@ -466,6 +469,7 @@ function navButton(id, label, icon) {
 }
 
 function renderSheet() {
+  if (activeSheet.kind === "resetPassword") return renderResetPasswordSheet();
   if (activeSheet.kind === "record") return renderRecordSheet(activeSheet.type, activeSheet.date);
   if (activeSheet.kind === "detail") return renderDetailSheet(activeSheet.date);
   if (activeSheet.kind === "journal") return renderJournalSheet(activeSheet.date);
@@ -476,6 +480,20 @@ function renderSheet() {
   if (activeSheet.kind === "cleanup") return renderCleanupSheet();
   if (activeSheet.kind === "cycleDay") return renderCycleDaySheet(activeSheet.date);
   return renderCycleSheet(activeSheet.date);
+}
+
+function renderResetPasswordSheet() {
+  return `
+    <div class="sheet-backdrop" data-action="close-sheet">
+      <section class="sheet" onclick="event.stopPropagation()">
+        <div class="card-title"><h2>设置新密码</h2><button class="ghost" data-action="close-sheet">关闭</button></div>
+        <p class="summary">输入一个新密码，保存后就可以用新密码登录这个账号。</p>
+        <form class="form" data-action="save-new-password">
+          ${passwordField("newPassword", "新密码", "至少 6 位", "new-password")}
+          <button class="primary" type="submit">保存新密码</button>
+        </form>
+      </section>
+    </div>`;
 }
 
 function renderRecordSheet(type, date) {
@@ -795,6 +813,16 @@ function textField(name, label, value = "", placeholder = "") {
   return `<div class="field"><label>${label}</label><input class="input" name="${name}" value="${escapeAttr(value || "")}" placeholder="${placeholder}" /></div>`;
 }
 
+function passwordField(name, label, placeholder = "至少 6 位", autocomplete = "current-password") {
+  return `<div class="field">
+    <label>${label}</label>
+    <div class="password-wrap">
+      <input class="input password-input" type="password" name="${name}" autocomplete="${autocomplete}" placeholder="${placeholder}" />
+      <button class="password-toggle" type="button" data-action="toggle-password" aria-label="显示密码" title="显示密码">眼</button>
+    </div>
+  </div>`;
+}
+
 function numberField(name, label, value = "", min, max) {
   return `<div class="field"><label>${label}</label><input class="input" type="number" min="${min}" max="${max}" name="${name}" value="${value || ""}" /></div>`;
 }
@@ -957,7 +985,7 @@ function renderCycleDaySheet(date) {
 function bindEvents() {
   document.querySelectorAll("[data-action]").forEach((el) => {
     const action = el.dataset.action;
-    if (action === "save-record" || action === "save-journal" || action === "save-cycle" || action === "save-cycle-day" || action === "save-todo" || action === "save-module" || action === "save-settings" || action === "save-cloud-config" || action === "cloud-login") {
+    if (action === "save-record" || action === "save-journal" || action === "save-cycle" || action === "save-cycle-day" || action === "save-todo" || action === "save-module" || action === "save-settings" || action === "save-cloud-config" || action === "cloud-login" || action === "save-new-password") {
       el.onsubmit = handleSubmit;
     } else {
       el.onclick = handleClick;
@@ -1039,7 +1067,12 @@ function handleClick(event) {
   if (action === "cloud-push") pushCloudState(true);
   if (action === "cloud-pull") pullCloudState(true);
   if (action === "cloud-logout") cloudLogout();
-  if (!["pick-chip", "toggle-option-editor", "add-option", "cancel-option-editor", "delete-option", "add-fitness-option", "stop-timer"].includes(action)) render();
+  if (action === "forgot-password") cloudForgotPassword();
+  if (action === "toggle-password") {
+    togglePasswordVisibility(button);
+    return;
+  }
+  if (!["pick-chip", "toggle-option-editor", "add-option", "cancel-option-editor", "delete-option", "add-fitness-option", "stop-timer", "forgot-password"].includes(action)) render();
 }
 
 async function handleSubmit(event) {
@@ -1064,6 +1097,11 @@ async function handleSubmit(event) {
     saveCloudConfig(new FormData(form));
   } else if (form.dataset.action === "cloud-login") {
     await cloudPasswordLogin(formDataWithSubmitter(form, event.submitter));
+  } else if (form.dataset.action === "save-new-password") {
+    if (!(await saveNewPassword(new FormData(form)))) {
+      render();
+      return;
+    }
   } else {
     saveModule(form.dataset.id, new FormData(form));
   }
@@ -2068,8 +2106,9 @@ function initCloudClient() {
     if (cloudSession) queueCloudSync();
     render();
   });
-  cloudClient.auth.onAuthStateChange((_event, session) => {
+  cloudClient.auth.onAuthStateChange((event, session) => {
     cloudSession = session || null;
+    if (event === "PASSWORD_RECOVERY") activeSheet = { kind: "resetPassword" };
     if (cloudSession) queueCloudSync();
     render();
   });
@@ -2079,10 +2118,11 @@ function initCloudClient() {
 async function completeCloudLoginFromUrl(client) {
   const searchParams = new URLSearchParams(location.search);
   const hashParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const isPasswordRecovery = searchParams.get("type") === "recovery" || hashParams.get("type") === "recovery";
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=31`);
+    history.replaceState(null, "", `${location.pathname}?v=35`);
     return;
   }
 
@@ -2094,9 +2134,10 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=31`);
+    history.replaceState(null, "", `${location.pathname}?v=35`);
     queueCloudSync();
-    alert("登录成功。");
+    if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
+    alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
     render();
     return;
   }
@@ -2117,10 +2158,23 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=31`);
+  history.replaceState(null, "", `${location.pathname}?v=35`);
   queueCloudSync();
-  alert("登录成功。");
+  if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
+  alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
   render();
+}
+
+function togglePasswordVisibility(button) {
+  const wrap = button.closest(".password-wrap");
+  const input = wrap ? wrap.querySelector("input") : null;
+  if (!input) return;
+  const shouldShow = input.type === "password";
+  input.type = shouldShow ? "text" : "password";
+  button.textContent = shouldShow ? "藏" : "眼";
+  button.setAttribute("aria-label", shouldShow ? "隐藏密码" : "显示密码");
+  button.title = shouldShow ? "隐藏密码" : "显示密码";
+  input.focus();
 }
 
 async function completeHashLogin(client) {
@@ -2138,7 +2192,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=28`);
+  history.replaceState(null, "", `${location.pathname}?v=35`);
   queueCloudSync();
   alert("登录成功。");
   render();
@@ -2177,6 +2231,51 @@ async function cloudPasswordLogin(data) {
   }
   queueCloudSync();
   alert(mode === "signup" ? "注册并登录成功。" : "登录成功。");
+}
+
+async function cloudForgotPassword() {
+  const client = initCloudClient();
+  const emailInput = document.querySelector('form[data-action="cloud-login"] input[name="email"]');
+  const email = ((emailInput && emailInput.value) || cloudMeta().email || "").trim();
+  if (!client) {
+    alert("云同步服务还没加载好，请刷新页面再试。");
+    return;
+  }
+  if (!email) {
+    alert("先填写邮箱，再点忘记密码。");
+    if (emailInput) emailInput.focus();
+    return;
+  }
+  saveCloudMeta({ email });
+  const { error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: `${location.origin}${location.pathname}`,
+  });
+  if (error) {
+    alert(`重置邮件发送失败：${error.message}`);
+    return;
+  }
+  alert("重置密码邮件已发送，请打开邮箱按提示设置新密码。");
+}
+
+async function saveNewPassword(data) {
+  const client = initCloudClient();
+  const password = (data.get("newPassword") || "").trim();
+  if (!client) {
+    alert("云同步服务还没加载好，请刷新页面再试。");
+    return false;
+  }
+  if (password.length < 6) {
+    alert("密码至少需要 6 位。");
+    return false;
+  }
+  const { error } = await client.auth.updateUser({ password });
+  if (error) {
+    alert(`密码更新失败：${error.message}`);
+    return false;
+  }
+  queueCloudSync();
+  alert("密码已更新，可以继续使用。");
+  return true;
 }
 
 async function cloudLogin(data) {
