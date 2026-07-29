@@ -265,6 +265,15 @@ button {
   padding: 18px;
 }
 
+.cycle-edit-card {
+  display: grid;
+  gap: 16px;
+}
+
+.cycle-edit-card .danger {
+  margin-top: 4px;
+}
+
 .card-title {
   display: flex;
   align-items: center;
@@ -701,14 +710,17 @@ button {
   position: absolute;
   right: 7px;
   top: 50%;
-  min-width: 42px;
-  min-height: 32px;
+  width: 42px;
+  height: 32px;
   transform: translateY(-50%);
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.68);
   color: var(--muted);
   padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
 .eye-mark {
@@ -716,6 +728,7 @@ button {
   width: 22px;
   height: 16px;
   display: block;
+  flex: 0 0 auto;
 }
 
 .eye-mark::before {
@@ -754,15 +767,18 @@ button {
 
 .eye-mark span {
   left: 10px;
+  display: block;
 }
 
 .eye-mark span::before {
+  content: "";
   left: -7px;
   bottom: -2px;
   transform: rotate(-36deg);
 }
 
 .eye-mark span::after {
+  content: "";
   left: 7px;
   bottom: -2px;
   transform: rotate(36deg);

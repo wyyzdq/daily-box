@@ -961,7 +961,7 @@ function renderCycleSheet(date) {
         <form class="form" data-action="save-cycle">
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
           ${state.cycles.map((cycle, index) => `
-            <div class="card section-card">
+            <div class="card section-card cycle-edit-card">
               <div class="field"><label>开始日期</label><input class="input date-text-input" inputmode="numeric" name="start-${index}" value="${displayDate(cycle.startDate)}" placeholder="xxxx/xx/xx" /></div>
               <div class="field"><label>结束日期</label><input class="input date-text-input" inputmode="numeric" name="end-${index}" value="${displayDate(cycle.endDate || "")}" placeholder="xxxx/xx/xx" /></div>
               <button class="danger" type="button" data-action="delete-cycle" data-index="${index}">删除这一条</button>
@@ -2129,11 +2129,11 @@ function initCloudClient() {
 async function completeCloudLoginFromUrl(client) {
   const searchParams = new URLSearchParams(location.search);
   const hashParams = new URLSearchParams(location.hash.replace(/^#/, ""));
-  const isPasswordRecovery = searchParams.get("type") === "recovery" || hashParams.get("type") === "recovery";
+  const isPasswordRecovery = searchParams.get("reset") === "1" || searchParams.get("type") === "recovery" || hashParams.get("type") === "recovery" || location.href.includes("recovery");
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=36`);
+    history.replaceState(null, "", `${location.pathname}?v=37`);
     return;
   }
 
@@ -2145,7 +2145,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=36`);
+    history.replaceState(null, "", `${location.pathname}?v=37`);
     queueCloudSync();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2169,7 +2169,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=36`);
+  history.replaceState(null, "", `${location.pathname}?v=37`);
   queueCloudSync();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2203,7 +2203,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=36`);
+  history.replaceState(null, "", `${location.pathname}?v=37`);
   queueCloudSync();
   alert("登录成功。");
   render();
@@ -2259,7 +2259,7 @@ async function cloudForgotPassword() {
   }
   saveCloudMeta({ email });
   const { error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: authRedirectUrl(),
+    redirectTo: authRedirectUrl("reset=1"),
   });
   if (error) {
     alert(`重置邮件发送失败：${error.message}`);
@@ -2268,10 +2268,11 @@ async function cloudForgotPassword() {
   alert("重置密码邮件已发送，请打开邮箱按提示设置新密码。");
 }
 
-function authRedirectUrl() {
+function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
-  if (location.protocol === "https:" && !location.hostname.includes("localhost")) return current;
-  return PUBLIC_APP_URL;
+  const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
+  const query = extraQuery ? `?v=37&${extraQuery}` : "?v=37";
+  return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
 async function saveNewPassword(data) {

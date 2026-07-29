@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-box-v36";
+const CACHE_NAME = "daily-box-v37";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
