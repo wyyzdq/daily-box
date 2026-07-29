@@ -64,6 +64,7 @@ let timerTicker = null;
 let cloudClient = null;
 let cloudSession = null;
 let cloudSyncTimer = null;
+let initialCloudSyncDone = false;
 
 function loadState() {
   try {
@@ -2102,13 +2103,14 @@ function initCloudClient() {
   completeCloudLoginFromUrl(cloudClient);
   cloudClient.auth.getSession().then(({ data }) => {
     cloudSession = data.session || null;
-    if (cloudSession) queueCloudSync();
+    if (cloudSession) syncCloudOnLogin();
     render();
   });
   cloudClient.auth.onAuthStateChange((event, session) => {
     cloudSession = session || null;
     if (event === "PASSWORD_RECOVERY") activeSheet = { kind: "resetPassword" };
-    if (cloudSession) queueCloudSync();
+    if (cloudSession && ["INITIAL_SESSION", "SIGNED_IN"].includes(event)) syncCloudOnLogin();
+    if (!cloudSession) initialCloudSyncDone = false;
     render();
   });
   return cloudClient;
@@ -2121,7 +2123,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=39`);
+    history.replaceState(null, "", `${location.pathname}?v=44`);
     return;
   }
 
@@ -2134,8 +2136,8 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=39`);
-    queueCloudSync();
+    history.replaceState(null, "", `${location.pathname}?v=44`);
+    await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
     render();
@@ -2150,8 +2152,8 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=39`);
-    queueCloudSync();
+    history.replaceState(null, "", `${location.pathname}?v=44`);
+    await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
     render();
@@ -2174,8 +2176,8 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=39`);
-  queueCloudSync();
+  history.replaceState(null, "", `${location.pathname}?v=44`);
+  await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
   render();
@@ -2208,8 +2210,8 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=39`);
-  queueCloudSync();
+  history.replaceState(null, "", `${location.pathname}?v=44`);
+  await syncCloudOnLogin();
   alert("登录成功。");
   render();
 }
@@ -2245,7 +2247,7 @@ async function cloudPasswordLogin(data) {
     alert("账号已创建，但 Supabase 还要求邮箱确认。请在 Supabase 里关闭 Confirm email，或者确认邮件后再登录。");
     return;
   }
-  queueCloudSync();
+  await syncCloudOnLogin();
   alert(mode === "signup" ? "注册并登录成功。" : "登录成功。");
 }
 
@@ -2276,7 +2278,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=39&${extraQuery}` : "?v=39";
+  const query = extraQuery ? `?v=44&${extraQuery}` : "?v=44";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2328,12 +2330,52 @@ async function cloudLogout() {
   const client = initCloudClient();
   if (client) await client.auth.signOut();
   cloudSession = null;
+  initialCloudSyncDone = false;
   render();
 }
 
 function queueCloudSync() {
+  if (cloudSession && !initialCloudSyncDone) return;
   if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
   cloudSyncTimer = setTimeout(() => pushCloudState(false), 1200);
+}
+
+async function syncCloudOnLogin() {
+  const client = initCloudClient();
+  if (!client || !cloudSession) return;
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  const { data, error } = await client.from("daily_box_state").select("payload, updated_at").eq("user_id", cloudSession.user.id).maybeSingle();
+  if (error) {
+    initialCloudSyncDone = true;
+    return;
+  }
+  const localHasData = hasMeaningfulState(state);
+  const cloudState = data && data.payload ? normalizeState(data.payload) : null;
+  const cloudHasData = Boolean(cloudState && hasMeaningfulState(cloudState));
+  const localUpdatedAt = cloudMeta().localUpdatedAt || "";
+  const cloudUpdatedAt = (data && data.updated_at) || "";
+  if (cloudHasData && (!localHasData || (cloudUpdatedAt && (!localUpdatedAt || cloudUpdatedAt > localUpdatedAt)))) {
+    state = cloudState;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveCloudMeta({ lastSyncedAt: cloudUpdatedAt || new Date().toISOString(), localUpdatedAt: cloudUpdatedAt || new Date().toISOString() });
+    initialCloudSyncDone = true;
+    render();
+    return;
+  }
+  initialCloudSyncDone = true;
+  if (localHasData && (!cloudHasData || (localUpdatedAt && (!cloudUpdatedAt || localUpdatedAt > cloudUpdatedAt)))) {
+    await pushCloudState(false);
+  }
+}
+
+function hasMeaningfulState(value) {
+  return Boolean(
+    Object.keys(value.entries || {}).length ||
+    (value.cycles || []).length ||
+    (value.todos || []).length ||
+    (value.customModules || []).length ||
+    Object.keys(value.timers || {}).length,
+  );
 }
 
 async function pushCloudState(showAlert = false) {
@@ -2431,8 +2473,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v34")) {
-          sessionStorage.setItem("daily-box-reloaded-v34", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v44")) {
+          sessionStorage.setItem("daily-box-reloaded-v44", "1");
           location.reload();
         }
       });
