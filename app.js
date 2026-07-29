@@ -942,6 +942,7 @@ function detailItem(type, record, date, isFuture) {
 }
 
 function renderCycleSheet(date) {
+  closeStaleCycles();
   return `
     <div class="sheet-backdrop" data-action="close-sheet">
       <section class="sheet" onclick="event.stopPropagation()">
@@ -951,9 +952,10 @@ function renderCycleSheet(date) {
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
           ${state.cycles.map((cycle, index) => `
             <div class="card section-card cycle-edit-card">
+              <input type="hidden" name="id-${index}" value="${cycle.id}" />
               <div class="field"><label>开始日期</label><input class="input native-picker" type="date" name="start-${index}" value="${cycle.startDate}" /></div>
               <div class="field"><label>结束日期</label><input class="input native-picker" type="date" name="end-${index}" value="${cycle.endDate || ""}" /></div>
-              <button class="danger" type="button" data-action="delete-cycle" data-index="${index}">删除这一条</button>
+              <button class="danger" type="button" data-action="delete-cycle" data-id="${cycle.id}">删除这一条</button>
             </div>`).join("")}
           <button class="secondary" type="button" data-action="start-cycle" data-date="${date}">把 ${dateLabel(date)} 标记为开始</button>
           <button class="primary" type="submit">保存修改</button>
@@ -963,6 +965,7 @@ function renderCycleSheet(date) {
 }
 
 function renderCycleDaySheet(date) {
+  closeStaleCycles();
   const cycle = ensureCycleForDate(date);
   return `
     <div class="sheet-backdrop" data-action="close-sheet">
@@ -1035,7 +1038,7 @@ function handleClick(event) {
   if (action === "delete-todo") deleteTodo(button.dataset.id);
   if (action === "start-cycle") startCycle(button.dataset.date);
   if (action === "end-cycle") endCycle(button.dataset.date);
-  if (action === "delete-cycle") deleteCycle(Number(button.dataset.index));
+  if (action === "delete-cycle") deleteCycle(button.dataset.id);
   if (action === "add-module-field") {
     addModuleField(button.closest("form"));
     return;
@@ -1366,6 +1369,7 @@ function drawTarot(date) {
 }
 
 function startCycle(date) {
+  closeStaleCycles();
   state.cycles = state.cycles.filter((cycle) => cycle.startDate !== date);
   const open = state.cycles.find((cycle) => !cycle.endDate);
   if (open && !confirm("上一条周期还没有结束，要先把它结束为前一天吗？")) return;
@@ -1375,6 +1379,7 @@ function startCycle(date) {
 }
 
 function endCycle(date) {
+  closeStaleCycles();
   const open = state.cycles.find((cycle) => !cycle.endDate && diffDays(date, cycle.startDate) >= 0);
   if (!open) return;
   open.endDate = date;
@@ -1385,10 +1390,12 @@ function endCycle(date) {
 function saveCycles(data) {
   saveCycleLength(data);
   state.cycles = state.cycles.map((cycle, index) => {
+    const id = data.get(`id-${index}`) || cycle.id;
     const startDate = data.get(`start-${index}`) || "";
     const endDate = data.get(`end-${index}`) || "";
     return {
       ...cycle,
+      id,
       startDate,
       endDate,
       updatedAt: new Date().toISOString(),
@@ -1409,13 +1416,14 @@ function saveCycleDay(id, data) {
   saveState();
 }
 
-function deleteCycle(index) {
+function deleteCycle(id) {
   if (!confirm("确定删除这条周期记录吗？")) return;
-  state.cycles.splice(index, 1);
+  state.cycles = state.cycles.filter((cycle) => cycle.id !== id);
   saveState();
 }
 
 function cycleStatus(date) {
+  closeStaleCycles();
   const actual = state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
   if (actual) return { open: !actual.endDate, text: `经期第 ${diffDays(date, actual.startDate) + 1} 天` };
   const last = [...state.cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
@@ -1438,10 +1446,12 @@ function saveCycleLength(data) {
 }
 
 function cycleForDate(date) {
+  closeStaleCycles();
   return state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
 }
 
 function ensureCycleForDate(date) {
+  closeStaleCycles();
   let cycle = cycleForDate(date);
   if (cycle) return cycle;
   cycle = { id: crypto.randomUUID(), startDate: date, endDate: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
@@ -1460,15 +1470,30 @@ function cycleDetailSummary(cycle) {
 }
 
 function isActualCycleDay(date) {
+  closeStaleCycles();
   return state.cycles.some((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
 }
 
 function isPredictedCycleDay(date) {
+  closeStaleCycles();
   const last = [...state.cycles].filter((cycle) => cycle.startDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
   if (!last) return false;
   const start = addDays(last.startDate, cycleLengthDays());
   const length = last.endDate ? diffDays(last.endDate, last.startDate) + 1 : 5;
   return dateInRange(date, start, addDays(start, length - 1));
+}
+
+function closeStaleCycles() {
+  let changed = false;
+  state.cycles.forEach((cycle) => {
+    if (!cycle.endDate && diffDays(todayKey(), cycle.startDate) >= 10) {
+      cycle.endDate = addDays(cycle.startDate, 5);
+      cycle.updatedAt = new Date().toISOString();
+      cycle.autoClosed = true;
+      changed = true;
+    }
+  });
+  if (changed) saveState();
 }
 
 function dateInRange(date, start, end) {
@@ -2123,7 +2148,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=44`);
+    history.replaceState(null, "", `${location.pathname}?v=45`);
     return;
   }
 
@@ -2136,7 +2161,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=44`);
+    history.replaceState(null, "", `${location.pathname}?v=45`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2152,7 +2177,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=44`);
+    history.replaceState(null, "", `${location.pathname}?v=45`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2176,7 +2201,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=44`);
+  history.replaceState(null, "", `${location.pathname}?v=45`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2210,7 +2235,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=44`);
+  history.replaceState(null, "", `${location.pathname}?v=45`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2278,7 +2303,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=44&${extraQuery}` : "?v=44";
+  const query = extraQuery ? `?v=45&${extraQuery}` : "?v=45";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2473,8 +2498,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v44")) {
-          sessionStorage.setItem("daily-box-reloaded-v44", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v45")) {
+          sessionStorage.setItem("daily-box-reloaded-v45", "1");
           location.reload();
         }
       });
