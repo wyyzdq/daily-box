@@ -982,12 +982,12 @@ function renderCycleDaySheet(date) {
 }
 
 function bindEvents() {
+  const app = document.querySelector("#app");
+  if (app) app.onclick = handleClick;
   document.querySelectorAll("[data-action]").forEach((el) => {
     const action = el.dataset.action;
     if (action === "save-record" || action === "save-journal" || action === "save-cycle" || action === "save-cycle-day" || action === "save-todo" || action === "save-module" || action === "save-settings" || action === "save-cloud-config" || action === "cloud-login" || action === "save-new-password") {
       el.onsubmit = handleSubmit;
-    } else {
-      el.onclick = handleClick;
     }
   });
   const importFile = document.querySelector("#importFile");
@@ -995,8 +995,11 @@ function bindEvents() {
 }
 
 function handleClick(event) {
+  const button = event.target.closest("button[data-action], .sheet-backdrop[data-action]");
+  if (!button) return;
+  if (!document.querySelector("#app")?.contains(button)) return;
+  event.preventDefault();
   event.stopPropagation();
-  const button = event.currentTarget;
   const action = button.dataset.action;
   if (action === "nav") {
     view = button.dataset.view;
