@@ -5,6 +5,7 @@ const DEFAULT_CLOUD_CONFIG = {
   url: "https://rkhumtykgijdwrjtpomn.supabase.co",
   anonKey: "sb_publishable_FWyrLRq60HJYsqD2UNC6nA_vHNPR3rO",
 };
+const PUBLIC_APP_URL = "https://graceful-gelato-458c22.netlify.app/";
 
 const defaultModules = {
   cycle: { title: "女性健康", mark: "●", color: "var(--rose-strong)" },
@@ -139,6 +140,18 @@ function formatDate(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function displayDate(value) {
+  return value ? value.replace(/-/g, "/") : "";
+}
+
+function normalizeDateInput(value) {
+  const text = String(value || "").trim().replace(/[.年月]/g, "/").replace(/日/g, "").replace(/-/g, "/");
+  const match = text.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return "";
+  const [, y, m, d] = match;
+  return `${y}-${String(Number(m)).padStart(2, "0")}-${String(Number(d)).padStart(2, "0")}`;
 }
 
 function parseDate(key) {
@@ -818,7 +831,9 @@ function passwordField(name, label, placeholder = "至少 6 位", autocomplete =
     <label>${label}</label>
     <div class="password-wrap">
       <input class="input password-input" type="password" name="${name}" autocomplete="${autocomplete}" placeholder="${placeholder}" />
-      <button class="password-toggle" type="button" data-action="toggle-password" aria-label="显示密码" title="显示密码">眼</button>
+      <button class="password-toggle" type="button" data-action="toggle-password" aria-label="显示密码" title="显示密码">
+        <span class="eye-mark" aria-hidden="true"><span></span></span>
+      </button>
     </div>
   </div>`;
 }
@@ -947,12 +962,8 @@ function renderCycleSheet(date) {
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
           ${state.cycles.map((cycle, index) => `
             <div class="card section-card">
-              <div class="field"><label>开始日期</label><input class="input" type="date" name="start-${index}" value="${cycle.startDate}" /></div>
-              <div class="field"><label>结束日期</label><input class="input" type="date" name="end-${index}" value="${cycle.endDate || ""}" /></div>
-              ${chipsField(`flow-${index}`, "流量", state.settings.flowOptions, cycle.flow || "", false, "settings:flowOptions")}
-              ${numberField(`pain-${index}`, "痛感（0-5）", cycle.pain || "", 0, 5)}
-              ${chipsField(`symptoms-${index}`, "症状", state.settings.symptomOptions, cycle.symptoms || "", true, "settings:symptomOptions")}
-              ${chipsField(`cycleMood-${index}`, "情绪", state.settings.cycleMoodOptions, cycle.cycleMood || "", false, "settings:cycleMoodOptions")}
+              <div class="field"><label>开始日期</label><input class="input date-text-input" inputmode="numeric" name="start-${index}" value="${displayDate(cycle.startDate)}" placeholder="xxxx/xx/xx" /></div>
+              <div class="field"><label>结束日期</label><input class="input date-text-input" inputmode="numeric" name="end-${index}" value="${displayDate(cycle.endDate || "")}" placeholder="xxxx/xx/xx" /></div>
               <button class="danger" type="button" data-action="delete-cycle" data-index="${index}">删除这一条</button>
             </div>`).join("")}
           <button class="secondary" type="button" data-action="start-cycle" data-date="${date}">把 ${dateLabel(date)} 标记为开始</button>
@@ -1384,16 +1395,16 @@ function endCycle(date) {
 
 function saveCycles(data) {
   saveCycleLength(data);
-  state.cycles = state.cycles.map((cycle, index) => ({
-    ...cycle,
-    startDate: data.get(`start-${index}`),
-    endDate: data.get(`end-${index}`) || "",
-    flow: data.get(`flow-${index}`) || "",
-    pain: data.get(`pain-${index}`) || "",
-    symptoms: data.get(`symptoms-${index}`) || "",
-    cycleMood: data.get(`cycleMood-${index}`) || "",
-    updatedAt: new Date().toISOString(),
-  })).filter((cycle) => cycle.startDate && (!cycle.endDate || diffDays(cycle.endDate, cycle.startDate) >= 0));
+  state.cycles = state.cycles.map((cycle, index) => {
+    const startDate = normalizeDateInput(data.get(`start-${index}`));
+    const endDate = normalizeDateInput(data.get(`end-${index}`));
+    return {
+      ...cycle,
+      startDate,
+      endDate,
+      updatedAt: new Date().toISOString(),
+    };
+  }).filter((cycle) => cycle.startDate && (!cycle.endDate || diffDays(cycle.endDate, cycle.startDate) >= 0));
   saveState();
 }
 
@@ -2122,7 +2133,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=35`);
+    history.replaceState(null, "", `${location.pathname}?v=36`);
     return;
   }
 
@@ -2134,7 +2145,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=35`);
+    history.replaceState(null, "", `${location.pathname}?v=36`);
     queueCloudSync();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2158,7 +2169,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=35`);
+  history.replaceState(null, "", `${location.pathname}?v=36`);
   queueCloudSync();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2171,7 +2182,7 @@ function togglePasswordVisibility(button) {
   if (!input) return;
   const shouldShow = input.type === "password";
   input.type = shouldShow ? "text" : "password";
-  button.textContent = shouldShow ? "藏" : "眼";
+  button.classList.toggle("is-visible", shouldShow);
   button.setAttribute("aria-label", shouldShow ? "隐藏密码" : "显示密码");
   button.title = shouldShow ? "隐藏密码" : "显示密码";
   input.focus();
@@ -2192,7 +2203,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=35`);
+  history.replaceState(null, "", `${location.pathname}?v=36`);
   queueCloudSync();
   alert("登录成功。");
   render();
@@ -2248,13 +2259,19 @@ async function cloudForgotPassword() {
   }
   saveCloudMeta({ email });
   const { error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: `${location.origin}${location.pathname}`,
+    redirectTo: authRedirectUrl(),
   });
   if (error) {
     alert(`重置邮件发送失败：${error.message}`);
     return;
   }
   alert("重置密码邮件已发送，请打开邮箱按提示设置新密码。");
+}
+
+function authRedirectUrl() {
+  const current = `${location.origin}${location.pathname}`;
+  if (location.protocol === "https:" && !location.hostname.includes("localhost")) return current;
+  return PUBLIC_APP_URL;
 }
 
 async function saveNewPassword(data) {
@@ -2292,7 +2309,7 @@ async function cloudLogin(data) {
   saveCloudMeta({ email });
   const { error } = await client.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${location.origin}${location.pathname}` },
+    options: { emailRedirectTo: authRedirectUrl() },
   });
   if (error) {
     alert(`发送失败：${error.message}`);

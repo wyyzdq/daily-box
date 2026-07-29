@@ -350,6 +350,7 @@ button {
   min-height: 132px;
   padding: 16px;
   text-align: left;
+  color: var(--ink);
   display: grid;
   align-content: space-between;
   background: rgba(255, 255, 255, 0.82);
@@ -385,6 +386,7 @@ button {
   margin: 12px 0 4px;
   font-size: 17px;
   font-weight: 820;
+  color: var(--ink);
 }
 
 .summary {
@@ -699,15 +701,89 @@ button {
   position: absolute;
   right: 7px;
   top: 50%;
-  min-width: 40px;
+  min-width: 42px;
   min-height: 32px;
   transform: translateY(-50%);
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.68);
   color: var(--muted);
-  font-weight: 820;
-  font-size: 13px;
+  padding: 0;
+}
+
+.eye-mark {
+  position: relative;
+  width: 22px;
+  height: 16px;
+  display: block;
+}
+
+.eye-mark::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 4px;
+  height: 10px;
+  border-bottom: 3px solid currentColor;
+  border-radius: 0 0 999px 999px;
+}
+
+.eye-mark::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  bottom: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.eye-mark span,
+.eye-mark span::before,
+.eye-mark span::after {
+  content: "";
+  position: absolute;
+  bottom: 11px;
+  width: 2px;
+  height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.eye-mark span {
+  left: 10px;
+}
+
+.eye-mark span::before {
+  left: -7px;
+  bottom: -2px;
+  transform: rotate(-36deg);
+}
+
+.eye-mark span::after {
+  left: 7px;
+  bottom: -2px;
+  transform: rotate(36deg);
+}
+
+.password-toggle.is-visible .eye-mark::before {
+  border-top: 3px solid currentColor;
+  border-bottom: 0;
+  top: 2px;
+  bottom: auto;
+  border-radius: 999px 999px 0 0;
+}
+
+.password-toggle.is-visible .eye-mark::after {
+  bottom: 5px;
+}
+
+.password-toggle.is-visible .eye-mark span,
+.password-toggle.is-visible .eye-mark span::before,
+.password-toggle.is-visible .eye-mark span::after {
+  display: none;
 }
 
 .password-tools {
@@ -719,6 +795,10 @@ button {
 .forgot-btn {
   padding: 0 4px;
   color: color-mix(in srgb, var(--control) 72%, var(--muted));
+}
+
+.date-text-input {
+  text-align: left;
 }
 
 .textarea {
