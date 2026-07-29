@@ -1,6 +1,10 @@
-const STORAGE_KEY = "daily-box-v1-state";
+﻿const STORAGE_KEY = "daily-box-v1-state";
 const CLOUD_CONFIG_KEY = "daily-box-cloud-config";
 const CLOUD_META_KEY = "daily-box-cloud-meta";
+const DEFAULT_CLOUD_CONFIG = {
+  url: "https://rkhumtykgijdwrjtpomn.supabase.co",
+  anonKey: "sb_publishable_FWyrLRq60HJYsqD2UNC6nA_vHNPR3rO",
+};
 
 const defaultModules = {
   cycle: { title: "女性健康", mark: "●", color: "var(--rose-strong)" },
@@ -417,32 +421,28 @@ function renderMine() {
 }
 
 function renderCloudSyncCard() {
-  const config = cloudConfig();
   const meta = cloudMeta();
-  const ready = Boolean(config.url && config.anonKey);
   const email = cloudSession && cloudSession.user ? cloudSession.user.email : "";
   return `
     <section class="card section-card">
-      <div class="card-title"><h2>账号与云同步</h2><span class="subtle">${email ? "已登录" : ready ? "可登录" : "待配置"}</span></div>
-      <p class="summary">${email ? `当前账号：${escapeHtml(email)}` : "先填 Supabase 配置，再用邮箱登录。登录后会自动把本地记录同步到云端。"}</p>
-      <p class="summary">Supabase 需要先建表：表名 <code>daily_box_state</code>，字段为 <code>user_id</code>、<code>payload</code>、<code>updated_at</code>，并开启 RLS。</p>
-      <form class="form" data-action="save-cloud-config">
-        ${textField("supabaseUrl", "Supabase 项目 URL", config.url || "", "https://xxxx.supabase.co")}
-        ${textField("supabaseAnonKey", "Supabase anon public key", config.anonKey || "", "eyJhbGci...")}
-        <button class="ghost" type="submit">保存云配置</button>
-      </form>
+      <div class="card-title"><h2>账号与同步</h2><span class="subtle">${email ? "已登录" : "未登录"}</span></div>
+      <p class="summary">${email ? `当前账号：${escapeHtml(email)}` : "登录后会自动同步记录。换手机或电脑时，用同一个账号登录就能继续使用。"}</p>
       ${
-        ready && !email
+        !email
           ? `<form class="form" data-action="cloud-login">
-              ${textField("email", "邮箱登录", meta.email || "", "you@example.com")}
-              <button class="primary" type="submit">发送登录邮件</button>
+              ${textField("email", "邮箱", meta.email || "", "you@example.com")}
+              <div class="field"><label>密码</label><input class="input" type="password" name="password" autocomplete="current-password" placeholder="至少 6 位" /></div>
+              <div class="actions-row">
+                <button class="primary" type="submit" name="cloudMode" value="login">登录</button>
+                <button class="secondary" type="submit" name="cloudMode" value="signup">注册</button>
+              </div>
             </form>`
           : ""
       }
       ${
         email
           ? `<div class="actions-row" style="margin-top:12px">
-              <button class="secondary" data-action="cloud-push">上传本机数据</button>
+              <button class="secondary" data-action="cloud-push">同步本机数据</button>
               <button class="ghost" data-action="cloud-pull">从云端恢复</button>
               <button class="ghost" data-action="cloud-logout">退出登录</button>
             </div>
@@ -451,7 +451,6 @@ function renderCloudSyncCard() {
       }
     </section>`;
 }
-
 function renderNav() {
   return `
     <nav class="bottom-nav">
@@ -1064,7 +1063,7 @@ async function handleSubmit(event) {
   } else if (form.dataset.action === "save-cloud-config") {
     saveCloudConfig(new FormData(form));
   } else if (form.dataset.action === "cloud-login") {
-    await cloudLogin(new FormData(form));
+    await cloudPasswordLogin(formDataWithSubmitter(form, event.submitter));
   } else {
     saveModule(form.dataset.id, new FormData(form));
   }
@@ -2019,11 +2018,14 @@ function saveSettings(data) {
 }
 
 function cloudConfig() {
-  try {
-    return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)) || {};
-  } catch {
-    return {};
-  }
+  const saved = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)) || {};
+    } catch {
+      return {};
+    }
+  })();
+  return { ...DEFAULT_CLOUD_CONFIG, ...saved };
 }
 
 function cloudMeta() {
@@ -2148,7 +2150,7 @@ async function cloudPasswordLogin(data) {
   const password = (data.get("password") || "").trim();
   const mode = data.get("cloudMode") || "login";
   if (!client) {
-    alert("先保存 Supabase 项目 URL 和 anon public key。");
+    alert("云同步服务还没加载好，请刷新页面再试。");
     return;
   }
   if (!email) {
@@ -2181,7 +2183,7 @@ async function cloudLogin(data) {
   const client = initCloudClient();
   const email = (data.get("email") || "").trim();
   if (!client) {
-    alert("先保存 Supabase 项目 URL 和 anon public key。");
+    alert("云同步服务还没加载好，请刷新页面再试。");
     return;
   }
   if (!email) {
@@ -2307,8 +2309,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v33")) {
-          sessionStorage.setItem("daily-box-reloaded-v33", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v34")) {
+          sessionStorage.setItem("daily-box-reloaded-v34", "1");
           location.reload();
         }
       });
@@ -2318,3 +2320,6 @@ if ("serviceWorker" in navigator) {
 
 initCloudClient();
 render();
+
+
+
