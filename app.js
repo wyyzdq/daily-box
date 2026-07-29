@@ -435,11 +435,7 @@ function renderCloudSyncCard() {
         ready && !email
           ? `<form class="form" data-action="cloud-login">
               ${textField("email", "邮箱登录", meta.email || "", "you@example.com")}
-              <div class="field"><label>登录密码</label><input class="input" type="password" name="password" autocomplete="current-password" placeholder="至少 6 位" /></div>
-              <div class="actions-row">
-                <button class="primary" type="submit" name="cloudMode" value="login">登录</button>
-                <button class="secondary" type="submit" name="cloudMode" value="signup">注册</button>
-              </div>
+              <button class="primary" type="submit">发送登录邮件</button>
             </form>`
           : ""
       }
@@ -1068,7 +1064,7 @@ async function handleSubmit(event) {
   } else if (form.dataset.action === "save-cloud-config") {
     saveCloudConfig(new FormData(form));
   } else if (form.dataset.action === "cloud-login") {
-    await cloudPasswordLogin(formDataWithSubmitter(form, event.submitter));
+    await cloudLogin(new FormData(form));
   } else {
     saveModule(form.dataset.id, new FormData(form));
   }
@@ -2311,8 +2307,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v32")) {
-          sessionStorage.setItem("daily-box-reloaded-v32", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v33")) {
+          sessionStorage.setItem("daily-box-reloaded-v33", "1");
           location.reload();
         }
       });
