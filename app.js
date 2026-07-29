@@ -142,29 +142,6 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-function displayDate(value) {
-  return value ? value.replace(/-/g, "/") : "";
-}
-
-function normalizeDateInput(value) {
-  const text = String(value || "").trim().replace(/[.年月]/g, "/").replace(/日/g, "").replace(/-/g, "/");
-  const match = text.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if (!match) return "";
-  const [, y, m, d] = match;
-  return `${y}-${String(Number(m)).padStart(2, "0")}-${String(Number(d)).padStart(2, "0")}`;
-}
-
-function normalizeTimeInput(value) {
-  const text = String(value || "").trim();
-  const compact = text.replace(/[：:]/g, "");
-  const match = compact.match(/^(\d{1,2})(\d{2})$/) || text.match(/^(\d{1,2})[：:](\d{1,2})$/);
-  if (!match) return "";
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) return "";
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-}
-
 function parseDate(key) {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -431,7 +408,7 @@ function renderMine() {
           <p class="summary">每天到点时，给自己留一个记录生活的小入口。</p>
           <form class="form" data-action="save-settings">
             ${chipsField("reminderEnabled", "每日提醒", ["开启", "关闭"], state.settings.reminderEnabled ? "开启" : "关闭")}
-            <div class="field"><label>提醒时间</label><input class="input time-text-input" inputmode="numeric" name="reminderTime" value="${state.settings.reminderTime}" placeholder="xx:xx" /></div>
+            <div class="field"><label>提醒时间</label><input class="input native-picker" type="time" name="reminderTime" value="${state.settings.reminderTime}" /></div>
             <button class="primary" type="submit">保存提醒</button>
           </form>
         </section>
@@ -973,8 +950,8 @@ function renderCycleSheet(date) {
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
           ${state.cycles.map((cycle, index) => `
             <div class="card section-card cycle-edit-card">
-              <div class="field"><label>开始日期</label><input class="input date-text-input" inputmode="numeric" name="start-${index}" value="${displayDate(cycle.startDate)}" placeholder="xxxx/xx/xx" /></div>
-              <div class="field"><label>结束日期</label><input class="input date-text-input" inputmode="numeric" name="end-${index}" value="${displayDate(cycle.endDate || "")}" placeholder="xxxx/xx/xx" /></div>
+              <div class="field"><label>开始日期</label><input class="input native-picker" type="date" name="start-${index}" value="${cycle.startDate}" /></div>
+              <div class="field"><label>结束日期</label><input class="input native-picker" type="date" name="end-${index}" value="${cycle.endDate || ""}" /></div>
               <button class="danger" type="button" data-action="delete-cycle" data-index="${index}">删除这一条</button>
             </div>`).join("")}
           <button class="secondary" type="button" data-action="start-cycle" data-date="${date}">把 ${dateLabel(date)} 标记为开始</button>
@@ -1407,8 +1384,8 @@ function endCycle(date) {
 function saveCycles(data) {
   saveCycleLength(data);
   state.cycles = state.cycles.map((cycle, index) => {
-    const startDate = normalizeDateInput(data.get(`start-${index}`));
-    const endDate = normalizeDateInput(data.get(`end-${index}`));
+    const startDate = data.get(`start-${index}`) || "";
+    const endDate = data.get(`end-${index}`) || "";
     return {
       ...cycle,
       startDate,
@@ -2073,7 +2050,7 @@ function updateThemeColor(theme) {
 
 function saveSettings(data) {
   state.settings.reminderEnabled = data.get("reminderEnabled") === "开启";
-  state.settings.reminderTime = normalizeTimeInput(data.get("reminderTime")) || "21:30";
+  state.settings.reminderTime = data.get("reminderTime") || "21:30";
   saveState();
 }
 
@@ -2144,7 +2121,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=38`);
+    history.replaceState(null, "", `${location.pathname}?v=39`);
     return;
   }
 
@@ -2157,7 +2134,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=38`);
+    history.replaceState(null, "", `${location.pathname}?v=39`);
     queueCloudSync();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2173,7 +2150,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=38`);
+    history.replaceState(null, "", `${location.pathname}?v=39`);
     queueCloudSync();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2197,7 +2174,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=38`);
+  history.replaceState(null, "", `${location.pathname}?v=39`);
   queueCloudSync();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2231,7 +2208,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=38`);
+  history.replaceState(null, "", `${location.pathname}?v=39`);
   queueCloudSync();
   alert("登录成功。");
   render();
@@ -2299,7 +2276,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=38&${extraQuery}` : "?v=38";
+  const query = extraQuery ? `?v=39&${extraQuery}` : "?v=39";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 

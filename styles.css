@@ -823,11 +823,19 @@ button {
   color: color-mix(in srgb, var(--control) 72%, var(--muted));
 }
 
-.date-text-input,
-.time-text-input {
+.native-picker {
   text-align: left;
-  appearance: none;
-  -webkit-appearance: none;
+  line-height: 1.2;
+}
+
+.native-picker::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+.native-picker::-webkit-calendar-picker-indicator {
+  margin-right: 0;
+  padding: 2px;
 }
 
 .textarea {
