@@ -52,6 +52,62 @@ const tarotDeck = [
   ["sun", "太阳", ["明亮", "坦然", "活力"], "允许自己拥有明亮的一刻。"],
   ["judgement", "审判", ["醒来", "回应", "召唤"], "回应那个已经出现很久的声音。"],
   ["world", "世界", ["完成", "整合", "圆满"], "看见你已经走过的路。"],
+  ["wands-ace", "权杖王牌", ["灵感", "火花", "启动"], "有一个念头值得被点燃。"],
+  ["wands-2", "权杖二", ["计划", "远方", "选择"], "先看远一点，再决定下一步。"],
+  ["wands-3", "权杖三", ["等待", "扩展", "视野"], "你已经把某件事送上了路。"],
+  ["wands-4", "权杖四", ["庆祝", "安定", "归属"], "给完成的小阶段一点掌声。"],
+  ["wands-5", "权杖五", ["摩擦", "竞争", "练习"], "分歧不一定是坏事，它也在磨合。"],
+  ["wands-6", "权杖六", ["认可", "胜利", "看见"], "今天可以允许自己被看见。"],
+  ["wands-7", "权杖七", ["坚持", "防守", "立场"], "守住你真正想守住的东西。"],
+  ["wands-8", "权杖八", ["加速", "消息", "推进"], "事情可能比想象中更快流动。"],
+  ["wands-9", "权杖九", ["警觉", "韧性", "边界"], "你已经撑过很多，别忘了照顾自己。"],
+  ["wands-10", "权杖十", ["压力", "承担", "卸下"], "有些重量可以不用一个人扛。"],
+  ["wands-page", "权杖侍从", ["探索", "热情", "尝试"], "保持好奇，先试试看。"],
+  ["wands-knight", "权杖骑士", ["冲劲", "冒险", "行动"], "热情很好，也记得看路。"],
+  ["wands-queen", "权杖王后", ["自信", "魅力", "温暖"], "把自己的光亮放出来一点。"],
+  ["wands-king", "权杖国王", ["领导", "愿景", "掌控"], "用清楚的方向带动今天。"],
+  ["cups-ace", "圣杯王牌", ["感受", "敞开", "滋养"], "新的情绪正在冒出来，温柔接住它。"],
+  ["cups-2", "圣杯二", ["连接", "互相", "靠近"], "真诚的回应会让关系更近一点。"],
+  ["cups-3", "圣杯三", ["友情", "庆祝", "分享"], "适合把快乐分给别人一点。"],
+  ["cups-4", "圣杯四", ["倦怠", "停顿", "忽略"], "你可能需要换个角度看眼前的礼物。"],
+  ["cups-5", "圣杯五", ["失落", "遗憾", "转身"], "允许难过，也别忘了还剩下什么。"],
+  ["cups-6", "圣杯六", ["回忆", "童心", "旧事"], "过去的柔软也可以滋养现在。"],
+  ["cups-7", "圣杯七", ["幻想", "选择", "迷雾"], "选项很多时，先问真正想要什么。"],
+  ["cups-8", "圣杯八", ["离开", "寻找", "成长"], "有些离开，是为了更靠近自己。"],
+  ["cups-9", "圣杯九", ["满足", "愿望", "享受"], "给已经拥有的东西一点感谢。"],
+  ["cups-10", "圣杯十", ["圆满", "家人", "幸福"], "安稳的幸福也值得认真感受。"],
+  ["cups-page", "圣杯侍从", ["敏感", "灵感", "心意"], "小小的心动也有它的意义。"],
+  ["cups-knight", "圣杯骑士", ["浪漫", "邀请", "表达"], "把心里的话说得柔软一点。"],
+  ["cups-queen", "圣杯王后", ["共情", "照顾", "直觉"], "温柔不是软弱，是很深的力量。"],
+  ["cups-king", "圣杯国王", ["成熟", "稳定", "包容"], "情绪可以被看见，也可以被安放。"],
+  ["swords-ace", "宝剑王牌", ["清晰", "真相", "决定"], "把事情说清楚，路会亮一点。"],
+  ["swords-2", "宝剑二", ["僵持", "权衡", "暂停"], "还没准备好决定，也是一种信息。"],
+  ["swords-3", "宝剑三", ["刺痛", "失望", "释放"], "疼痛在提醒你，有些东西需要被处理。"],
+  ["swords-4", "宝剑四", ["休息", "恢复", "静养"], "先停下来，答案不急着出现。"],
+  ["swords-5", "宝剑五", ["争执", "代价", "退让"], "赢了争论，不一定赢得自己。"],
+  ["swords-6", "宝剑六", ["过渡", "离岸", "前行"], "慢慢离开旧状态，已经是在前进。"],
+  ["swords-7", "宝剑七", ["策略", "隐藏", "绕路"], "看清自己的动机，也看清别人的边界。"],
+  ["swords-8", "宝剑八", ["受限", "困住", "松绑"], "也许限制没有你想的那么牢。"],
+  ["swords-9", "宝剑九", ["焦虑", "失眠", "担忧"], "把脑内风暴写下来，会轻一点。"],
+  ["swords-10", "宝剑十", ["结束", "低谷", "翻篇"], "最难的地方，也可能是转折点。"],
+  ["swords-page", "宝剑侍从", ["观察", "学习", "警觉"], "保持清醒，也保持开放。"],
+  ["swords-knight", "宝剑骑士", ["快速", "直接", "突破"], "行动很快时，更要留一点余地。"],
+  ["swords-queen", "宝剑王后", ["理性", "边界", "诚实"], "清楚地表达，会保护你的柔软。"],
+  ["swords-king", "宝剑国王", ["判断", "规则", "决策"], "用理智给混乱一点秩序。"],
+  ["pentacles-ace", "星币王牌", ["机会", "现实", "种子"], "一个实际的开始值得认真对待。"],
+  ["pentacles-2", "星币二", ["平衡", "调度", "弹性"], "今天适合在变化里找到节奏。"],
+  ["pentacles-3", "星币三", ["合作", "技艺", "建设"], "一起完成，会比独自硬撑更好。"],
+  ["pentacles-4", "星币四", ["保守", "安全", "掌控"], "安全感重要，但别握得太紧。"],
+  ["pentacles-5", "星币五", ["匮乏", "低潮", "求助"], "困难时，允许自己向外求援。"],
+  ["pentacles-6", "星币六", ["给予", "接受", "公平"], "能量需要流动，关系也是。"],
+  ["pentacles-7", "星币七", ["等待", "评估", "耕耘"], "你种下的东西正在慢慢长。"],
+  ["pentacles-8", "星币八", ["练习", "专注", "精进"], "重复的小事，也在把你带远。"],
+  ["pentacles-9", "星币九", ["独立", "丰盛", "自足"], "享受自己努力换来的安稳。"],
+  ["pentacles-10", "星币十", ["积累", "传承", "长期"], "把目光放长一点，会看见更大的图景。"],
+  ["pentacles-page", "星币侍从", ["学习", "踏实", "新机会"], "从一个具体的小行动开始。"],
+  ["pentacles-knight", "星币骑士", ["稳定", "耐心", "执行"], "慢也没关系，重要的是持续。"],
+  ["pentacles-queen", "星币王后", ["照料", "安稳", "丰饶"], "照顾现实生活，也是在照顾心。"],
+  ["pentacles-king", "星币国王", ["可靠", "成果", "资源"], "把资源用在真正重要的地方。"],
 ].map(([id, cardName, keywords, message]) => ({ id, cardName, keywords, message }));
 
 let state = loadState();
@@ -255,12 +311,39 @@ function renderTarot(entry, key) {
       <div class="card-title"><h2>今日一抽</h2>${tarot ? '<span class="subtle">已保存</span>' : ""}</div>
       ${
         tarot
-          ? `<div class="tarot-name">${tarot.cardName}</div>
-             <p class="summary">关键词：${tarot.keywords.join("、")}<br>${tarot.message}</p>`
+          ? `<div class="tarot-name">${tarotTitle(tarot)}</div>
+             <p class="summary">关键词：${tarotKeywords(tarot).join("、")}<br>${tarotMessage(tarot)}</p>`
           : `<p class="summary">给今天一个轻轻的提示。</p>
              <button class="primary" data-action="draw-tarot" data-date="${key}">抽一张牌</button>`
       }
     </section>`;
+}
+
+function tarotOrientationLabel(orientation) {
+  return orientation === "reversed" ? "逆位" : "正位";
+}
+
+function tarotTitle(tarot) {
+  if (!tarot) return "";
+  return `${tarot.cardName}${tarot.orientation ? ` · ${tarotOrientationLabel(tarot.orientation)}` : ""}`;
+}
+
+function tarotKeywords(tarot) {
+  return tarot?.keywords || [];
+}
+
+function tarotMessage(tarot) {
+  if (!tarot) return "";
+  if (tarot.orientation === "reversed") {
+    const keywords = tarotKeywords(tarot);
+    const hint = keywords.length ? keywords.join("、") : "今天的状态";
+    return tarot.reversedMessage || `这张牌逆位时，提醒你留意「${hint}」里被卡住、过度消耗或还没说清的部分。先慢一点，别急着把答案固定下来。`;
+  }
+  return tarot.uprightMessage || tarot.message || "";
+}
+
+function tarotDetailText(tarot) {
+  return `${tarotTitle(tarot)} · ${tarotKeywords(tarot).join("、")}`;
 }
 
 function renderRecordCard(type, record, key) {
@@ -845,7 +928,7 @@ function renderDetailSheet(date) {
           ${Object.keys(modulesForEntry(entry)).map((type) => detailItem(type, getRecord(entry, type), date, isFuture)).join("")}
           ${historyHidden("journal") ? "" : `<div class="detail-item"><div><strong>今日小记</strong><span class="subtle">${entry.journal ? escapeHtml(entry.journal).replace(/\n/g, "<br>") : "未记录"}</span></div>${isFuture ? "" : `<button class="ghost" data-action="open-journal" data-date="${date}">${entry.journal ? "编辑" : "添加"}</button>`}</div>`}
           ${historyHidden("todos") ? "" : `<div class="detail-item"><div><strong>今日待办</strong><span class="subtle">${todoSummary(date)}</span></div><button class="ghost" data-action="manage-todos" data-date="${date}">查看</button></div>`}
-          ${entry.tarot && !historyHidden("tarot") ? `<div class="detail-item"><div><strong>今日一抽</strong><span class="subtle">${entry.tarot.cardName} · ${entry.tarot.keywords.join("、")}</span></div></div>` : ""}
+          ${entry.tarot && !historyHidden("tarot") ? `<div class="detail-item"><div><strong>今日一抽</strong><span class="subtle">${tarotDetailText(entry.tarot)}</span></div></div>` : ""}
           ${historyHidden("cycle") ? "" : `<div class="detail-item"><div><strong>女性健康</strong><span class="subtle">${cycleStatus(date).text}</span></div><button class="ghost" data-action="open-cycle" data-date="${date}">编辑</button></div>`}
         </div>
       </section>
@@ -1363,7 +1446,8 @@ function drawTarot(date) {
   const entry = getEntry(date);
   if (entry.tarot) return;
   const card = tarotDeck[Math.floor(Math.random() * tarotDeck.length)];
-  entry.tarot = { ...card, date, drawnAt: new Date().toISOString() };
+  const orientation = Math.random() < 0.5 ? "upright" : "reversed";
+  entry.tarot = { ...card, orientation, date, drawnAt: new Date().toISOString() };
   touchEntry(date);
 }
 
@@ -2182,7 +2266,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=47`);
+    history.replaceState(null, "", `${location.pathname}?v=48`);
     return;
   }
 
@@ -2195,7 +2279,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=47`);
+    history.replaceState(null, "", `${location.pathname}?v=48`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2211,7 +2295,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=47`);
+    history.replaceState(null, "", `${location.pathname}?v=48`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2235,7 +2319,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=47`);
+  history.replaceState(null, "", `${location.pathname}?v=48`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2269,7 +2353,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=47`);
+  history.replaceState(null, "", `${location.pathname}?v=48`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2337,7 +2421,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=47&${extraQuery}` : "?v=47";
+  const query = extraQuery ? `?v=48&${extraQuery}` : "?v=48";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2532,8 +2616,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v47")) {
-          sessionStorage.setItem("daily-box-reloaded-v47", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v48")) {
+          sessionStorage.setItem("daily-box-reloaded-v48", "1");
           location.reload();
         }
       });
