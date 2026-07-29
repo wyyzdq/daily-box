@@ -1,0 +1,17 @@
+{
+  "name": "日常盒子",
+  "short_name": "日常盒子",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff8f5",
+  "theme_color": "#f7d7dc",
+  "description": "温柔、轻量的生活记录 App",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
