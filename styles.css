@@ -79,12 +79,8 @@ textarea {
 }
 
 button {
-  appearance: none;
-  -webkit-appearance: none;
   border: 0;
   cursor: pointer;
-  background-color: transparent;
-  color: inherit;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -310,7 +306,6 @@ button {
   place-items: center;
   min-height: 104px;
   border-radius: 24px;
-  background: #111519;
   background:
     radial-gradient(circle at 72% 28%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 28%),
     linear-gradient(135deg, var(--control), color-mix(in srgb, var(--control) 72%, var(--accent)));
@@ -335,14 +330,12 @@ button {
 }
 
 .primary {
-  background: #111519;
   background: linear-gradient(180deg, color-mix(in srgb, var(--control) 84%, white), var(--control));
   color: var(--control-contrast);
   box-shadow: 0 12px 24px color-mix(in srgb, var(--control) 24%, transparent);
 }
 
 .secondary {
-  background: #9cc43f;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 76%, white), var(--accent));
   color: #121711;
   box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 28%, transparent);
@@ -355,7 +348,6 @@ button {
 }
 
 .danger {
-  background: rgba(156, 196, 63, 0.14);
   background: color-mix(in srgb, var(--accent) 14%, white);
   color: var(--control);
 }
@@ -871,33 +863,6 @@ button {
 .chip.is-selected {
   background: var(--control);
   color: var(--control-contrast);
-}
-
-@supports not (background: color-mix(in srgb, white, black)) {
-  .tarot-card {
-    background: rgba(255, 255, 255, 0.72);
-  }
-
-  .tarot-name,
-  .primary {
-    background: var(--control);
-    color: var(--control-contrast);
-  }
-
-  .secondary {
-    background: var(--accent);
-    color: #121711;
-  }
-
-  .danger {
-    background: rgba(156, 196, 63, 0.14);
-    color: var(--control);
-  }
-
-  .day.is-predicted,
-  .day.is-cycle {
-    background: rgba(156, 196, 63, 0.16);
-  }
 }
 
 .option-editor {
