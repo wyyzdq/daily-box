@@ -529,7 +529,7 @@ function renderMultiRecordSheet(type, date) {
         <div class="subtle">${dateLabel(date)}</div>
         <form class="form" data-action="save-record" data-type="${type}" data-date="${date}">
           <div class="multi-items">
-            ${items.map((item, index) => renderMultiItem(type, item, index)).join("")}
+            ${items.map((item, index) => renderMultiItem(type, item, index, date)).join("")}
           </div>
           <button class="secondary" type="button" data-action="add-record-item" data-type="${type}">添加一条</button>
           ${multiTotalLine(type, record)}
@@ -543,17 +543,17 @@ function renderMultiRecordSheet(type, date) {
     </div>`;
 }
 
-function renderMultiItem(type, item, index) {
+function renderMultiItem(type, item, index, date = todayKey()) {
   const itemId = item.id || crypto.randomUUID();
   return `
     <section class="card section-card multi-item" data-index="${index}">
       <div class="card-title"><h3>第 ${index + 1} 条</h3><button class="ghost" type="button" data-action="remove-record-item">删除</button></div>
       <input type="hidden" name="itemId-${index}" value="${itemId}" />
-      ${multiItemFields(type, { ...item, id: itemId }, index)}
+      ${multiItemFields(type, { ...item, id: itemId }, index, date)}
     </section>`;
 }
 
-function multiItemFields(type, item, index) {
+function multiItemFields(type, item, index, date = todayKey()) {
   if (type === "mood") {
     return `
       ${chipsField(`mood-${index}`, "现在感觉怎么样？", state.settings.moodOptions, item.mood, false, "settings:moodOptions")}
@@ -563,7 +563,7 @@ function multiItemFields(type, item, index) {
   }
   if (type === "fitness") {
     return `
-      ${renderTimerBox(`fitness:${item.id}`, `durationMinutes-${index}`)}
+      ${renderTimerBox(`fitness:${date}:${index}`, `durationMinutes-${index}`)}
       ${chipsField(`activityType-${index}`, "运动类型", state.settings.fitnessOptions, item.activityType, false, "settings:fitnessOptions")}
       ${numberField(`durationMinutes-${index}`, "时长（分钟）", item.durationMinutes, 1, 1440)}
       ${chipsField(`feeling-${index}`, "感受", state.settings.fitnessFeelings, item.feeling, false, "settings:fitnessFeelings")}
@@ -1854,7 +1854,7 @@ function addRecordItem(button) {
   const type = button.dataset.type;
   const wrap = form.querySelector(".multi-items");
   const index = wrap.querySelectorAll(".multi-item").length;
-  wrap.insertAdjacentHTML("beforeend", renderMultiItem(type, blankItem(type), index));
+  wrap.insertAdjacentHTML("beforeend", renderMultiItem(type, blankItem(type), index, form.dataset.date || todayKey()));
   bindEvents();
 }
 
