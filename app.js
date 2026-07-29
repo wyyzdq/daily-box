@@ -534,7 +534,6 @@ function renderMultiRecordSheet(type, date) {
           </div>
           <button class="secondary" type="button" data-action="add-record-item" data-type="${type}">添加一条</button>
           ${multiTotalLine(type, record)}
-          ${textareaField("recordNote", "整体备注", record.note || "")}
           <div class="actions-row">
             <button class="primary" type="submit">保存</button>
             ${recordExists(type, date) ? `<button class="danger" type="button" data-action="delete-record" data-type="${type}" data-date="${date}">删除全部</button>` : ""}
@@ -943,6 +942,7 @@ function detailItem(type, record, date, isFuture) {
 
 function renderCycleSheet(date) {
   closeStaleCycles();
+  const cycles = cyclesForEditor(date);
   return `
     <div class="sheet-backdrop" data-action="close-sheet">
       <section class="sheet" onclick="event.stopPropagation()">
@@ -950,14 +950,13 @@ function renderCycleSheet(date) {
         <p class="summary">日期根据你设置的周期长度估算，仅供记录参考，不作为医疗建议。</p>
         <form class="form" data-action="save-cycle">
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
-          ${state.cycles.map((cycle, index) => `
+          ${cycles.map((cycle, index) => `
             <div class="card section-card cycle-edit-card">
               <input type="hidden" name="id-${index}" value="${cycle.id}" />
               <div class="field"><label>开始日期</label><input class="input native-picker" type="date" name="start-${index}" value="${cycle.startDate}" /></div>
               <div class="field"><label>结束日期</label><input class="input native-picker" type="date" name="end-${index}" value="${cycle.endDate || ""}" /></div>
-              <button class="danger" type="button" data-action="delete-cycle" data-id="${cycle.id}">删除这一条</button>
+              ${cycle.isDraft ? "" : `<button class="danger" type="button" data-action="delete-cycle" data-id="${cycle.id}">删除这一条</button>`}
             </div>`).join("")}
-          <button class="secondary" type="button" data-action="start-cycle" data-date="${date}">把 ${dateLabel(date)} 标记为开始</button>
           <button class="primary" type="submit">保存修改</button>
         </form>
       </section>
@@ -1343,7 +1342,7 @@ function saveMultiRecord(type, date, data) {
     alert("先至少保存一条记录。");
     return false;
   }
-  getEntry(date)[type] = { items, note: data.get("recordNote") || "" };
+  getEntry(date)[type] = { items };
   touchEntry(date);
   return true;
 }
@@ -1389,18 +1388,22 @@ function endCycle(date) {
 
 function saveCycles(data) {
   saveCycleLength(data);
-  state.cycles = state.cycles.map((cycle, index) => {
-    const id = data.get(`id-${index}`) || cycle.id;
+  const cycles = cyclesForEditor(activeSheet && activeSheet.date ? activeSheet.date : todayKey());
+  state.cycles = cycles.map((cycle, index) => {
+    const rawId = data.get(`id-${index}`) || cycle.id;
+    const id = rawId.startsWith("draft-") ? crypto.randomUUID() : rawId;
     const startDate = data.get(`start-${index}`) || "";
     const endDate = data.get(`end-${index}`) || "";
     return {
       ...cycle,
       id,
+      isDraft: undefined,
       startDate,
       endDate,
       updatedAt: new Date().toISOString(),
     };
   }).filter((cycle) => cycle.startDate && (!cycle.endDate || diffDays(cycle.endDate, cycle.startDate) >= 0));
+  sanitizeCycles();
   saveState();
 }
 
@@ -1450,6 +1453,14 @@ function cycleForDate(date) {
   return state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
 }
 
+function cyclesForEditor(date) {
+  sanitizeCycles();
+  const exact = state.cycles.find((cycle) => cycle.startDate === date);
+  const containing = exact || state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
+  const ordered = containing ? [containing, ...state.cycles.filter((cycle) => cycle.id !== containing.id)] : [{ id: `draft-${date}`, startDate: date, endDate: "", isDraft: true }, ...state.cycles];
+  return ordered;
+}
+
 function ensureCycleForDate(date) {
   closeStaleCycles();
   let cycle = cycleForDate(date);
@@ -1493,7 +1504,26 @@ function closeStaleCycles() {
       changed = true;
     }
   });
+  if (sanitizeCycles(false)) changed = true;
   if (changed) saveState();
+}
+
+function sanitizeCycles(shouldSave = true) {
+  let changed = false;
+  state.cycles = state.cycles.filter((cycle) => {
+    if (!cycle.startDate) {
+      changed = true;
+      return false;
+    }
+    if (cycle.endDate && diffDays(cycle.endDate, cycle.startDate) < 0) {
+      cycle.endDate = "";
+      cycle.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+    return true;
+  });
+  if (changed && shouldSave) saveState();
+  return changed;
 }
 
 function dateInRange(date, start, end) {
@@ -2148,7 +2178,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=45`);
+    history.replaceState(null, "", `${location.pathname}?v=46`);
     return;
   }
 
@@ -2161,7 +2191,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=45`);
+    history.replaceState(null, "", `${location.pathname}?v=46`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2177,7 +2207,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=45`);
+    history.replaceState(null, "", `${location.pathname}?v=46`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2201,7 +2231,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=45`);
+  history.replaceState(null, "", `${location.pathname}?v=46`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2235,7 +2265,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=45`);
+  history.replaceState(null, "", `${location.pathname}?v=46`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2303,7 +2333,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=45&${extraQuery}` : "?v=45";
+  const query = extraQuery ? `?v=46&${extraQuery}` : "?v=46";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2498,8 +2528,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v45")) {
-          sessionStorage.setItem("daily-box-reloaded-v45", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v46")) {
+          sessionStorage.setItem("daily-box-reloaded-v46", "1");
           location.reload();
         }
       });
