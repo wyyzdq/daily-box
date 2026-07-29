@@ -1,0 +1,12 @@
+{
+  "name": "daily-box",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
