@@ -310,7 +310,7 @@ button {
   place-items: center;
   min-height: 104px;
   border-radius: 24px;
-  background: #111519;
+  background: var(--control);
   background:
     radial-gradient(circle at 72% 28%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 28%),
     linear-gradient(135deg, var(--control), color-mix(in srgb, var(--control) 72%, var(--accent)));
@@ -335,14 +335,14 @@ button {
 }
 
 .primary {
-  background: #111519;
+  background: var(--control);
   background: linear-gradient(180deg, color-mix(in srgb, var(--control) 84%, white), var(--control));
   color: var(--control-contrast);
   box-shadow: 0 12px 24px color-mix(in srgb, var(--control) 24%, transparent);
 }
 
 .secondary {
-  background: #9cc43f;
+  background: var(--accent);
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 76%, white), var(--accent));
   color: #121711;
   box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 28%, transparent);
@@ -530,6 +530,37 @@ button {
 .detail-item strong {
   display: block;
   margin-bottom: 4px;
+}
+
+.module-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.module-item > div:first-child {
+  min-width: 0;
+}
+
+.module-item .actions-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.module-item .ghost {
+  min-width: 64px;
+  min-height: 42px;
+  padding: 0 12px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.module-item .subtle {
+  line-height: 1.35;
 }
 
 .todo-list {
@@ -873,6 +904,30 @@ button {
   color: var(--control-contrast);
 }
 
+@supports not (background: color-mix(in srgb, white, black)) {
+  .tarot-name,
+  .primary,
+  .chip.is-selected,
+  .nav-btn.is-active {
+    background: var(--control);
+    color: var(--control-contrast);
+  }
+
+  .secondary {
+    background: var(--accent);
+    color: #121711;
+  }
+
+  .danger {
+    background: rgba(156, 196, 63, 0.14);
+    color: var(--control);
+  }
+
+  .sheet-backdrop {
+    background: rgba(17, 21, 25, 0.34);
+  }
+}
+
 .option-editor {
   display: grid;
   gap: 10px;
@@ -945,5 +1000,21 @@ button {
 
   .grid-2 {
     gap: 8px;
+  }
+}
+
+@media (max-width: 390px) {
+  .module-item {
+    gap: 8px;
+  }
+
+  .module-item .actions-row {
+    gap: 6px;
+  }
+
+  .module-item .ghost {
+    min-width: 58px;
+    padding: 0 10px;
+    font-size: 15px;
   }
 }

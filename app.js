@@ -681,7 +681,7 @@ function renderModules() {
 function systemModuleRow(id, module) {
   const hidden = (state.settings.hiddenDefaultModules || []).includes(id);
   return `
-    <div class="detail-item">
+    <div class="detail-item module-item">
       <div><strong>${module.title}</strong><span class="subtle">${hidden ? "默认模块 · 已隐藏" : "默认模块 · 今日页显示中"}</span></div>
       <button class="ghost" data-action="toggle-default-module" data-id="${id}">${hidden ? "恢复" : "隐藏"}</button>
     </div>`;
@@ -691,7 +691,7 @@ function moduleRow(id, module, locked, builtIn = false) {
   const realId = id.replace("custom:", "");
   const hidden = builtIn ? (state.settings.hiddenBuiltInModules || []).includes(realId) : module.isEnabled === false;
   return `
-    <div class="detail-item">
+    <div class="detail-item module-item">
       <div><strong>${module.title || module.name}</strong><span class="subtle">${builtIn ? "内置模块" : `${module.fields.length} 个字段`} · ${hidden ? "已隐藏，历史记录仍保留" : "今日页显示中"}</span></div>
       <div class="actions-row"><button class="ghost" data-action="${builtIn ? "toggle-built-in-module" : "toggle-custom-module"}" data-id="${realId}">${hidden ? "恢复" : "隐藏"}</button><button class="ghost" data-action="${builtIn ? "delete-built-in-module" : "delete-module"}" data-id="${realId}">删除</button>${builtIn ? "" : `<button class="ghost" data-action="open-module" data-id="${realId}">编辑</button>`}</div>
     </div>`;
