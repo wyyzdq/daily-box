@@ -154,6 +154,17 @@ function normalizeDateInput(value) {
   return `${y}-${String(Number(m)).padStart(2, "0")}-${String(Number(d)).padStart(2, "0")}`;
 }
 
+function normalizeTimeInput(value) {
+  const text = String(value || "").trim();
+  const compact = text.replace(/[：:]/g, "");
+  const match = compact.match(/^(\d{1,2})(\d{2})$/) || text.match(/^(\d{1,2})[：:](\d{1,2})$/);
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 function parseDate(key) {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -420,7 +431,7 @@ function renderMine() {
           <p class="summary">每天到点时，给自己留一个记录生活的小入口。</p>
           <form class="form" data-action="save-settings">
             ${chipsField("reminderEnabled", "每日提醒", ["开启", "关闭"], state.settings.reminderEnabled ? "开启" : "关闭")}
-            <div class="field"><label>提醒时间</label><input class="input" type="time" name="reminderTime" value="${state.settings.reminderTime}" /></div>
+            <div class="field"><label>提醒时间</label><input class="input time-text-input" inputmode="numeric" name="reminderTime" value="${state.settings.reminderTime}" placeholder="xx:xx" /></div>
             <button class="primary" type="submit">保存提醒</button>
           </form>
         </section>
@@ -2062,7 +2073,7 @@ function updateThemeColor(theme) {
 
 function saveSettings(data) {
   state.settings.reminderEnabled = data.get("reminderEnabled") === "开启";
-  state.settings.reminderTime = data.get("reminderTime") || "21:30";
+  state.settings.reminderTime = normalizeTimeInput(data.get("reminderTime")) || "21:30";
   saveState();
 }
 
@@ -2133,7 +2144,24 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=37`);
+    history.replaceState(null, "", `${location.pathname}?v=38`);
+    return;
+  }
+
+  const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+  if (tokenHash) {
+    const otpType = searchParams.get("type") || hashParams.get("type") || (isPasswordRecovery ? "recovery" : "email");
+    const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
+    if (error) {
+      alert(`链接识别失败：${error.message}`);
+      return;
+    }
+    cloudSession = data.session || null;
+    history.replaceState(null, "", `${location.pathname}?v=38`);
+    queueCloudSync();
+    if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
+    alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
+    render();
     return;
   }
 
@@ -2145,7 +2173,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=37`);
+    history.replaceState(null, "", `${location.pathname}?v=38`);
     queueCloudSync();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2169,7 +2197,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=37`);
+  history.replaceState(null, "", `${location.pathname}?v=38`);
   queueCloudSync();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2203,7 +2231,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=37`);
+  history.replaceState(null, "", `${location.pathname}?v=38`);
   queueCloudSync();
   alert("登录成功。");
   render();
@@ -2271,7 +2299,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=37&${extraQuery}` : "?v=37";
+  const query = extraQuery ? `?v=38&${extraQuery}` : "?v=38";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 

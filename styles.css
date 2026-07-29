@@ -22,7 +22,9 @@
   --radius: 26px;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -73,6 +75,7 @@ input,
 select,
 textarea {
   font: inherit;
+  max-width: 100%;
 }
 
 button {
@@ -630,6 +633,7 @@ button {
 
 .sheet {
   width: min(100%, 456px);
+  min-width: 0;
   max-height: min(86vh, 760px);
   overflow: auto;
   background: rgba(253, 255, 247, 0.94);
@@ -649,11 +653,13 @@ button {
   display: grid;
   gap: 14px;
   margin-top: 14px;
+  min-width: 0;
 }
 
 .field {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .field label {
@@ -679,7 +685,9 @@ button {
 .input,
 .textarea,
 .select {
+  display: block;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -700,6 +708,8 @@ button {
   position: relative;
   display: flex;
   align-items: center;
+  min-width: 0;
+  width: 100%;
 }
 
 .password-wrap .input {
@@ -813,8 +823,11 @@ button {
   color: color-mix(in srgb, var(--control) 72%, var(--muted));
 }
 
-.date-text-input {
+.date-text-input,
+.time-text-input {
   text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .textarea {
@@ -827,6 +840,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .chip {
