@@ -1389,7 +1389,7 @@ function endCycle(date) {
 function saveCycles(data) {
   saveCycleLength(data);
   const cycles = cyclesForEditor(activeSheet && activeSheet.date ? activeSheet.date : todayKey());
-  state.cycles = cycles.map((cycle, index) => {
+  const edited = cycles.map((cycle, index) => {
     const rawId = data.get(`id-${index}`) || cycle.id;
     const id = rawId.startsWith("draft-") ? crypto.randomUUID() : rawId;
     const startDate = data.get(`start-${index}`) || "";
@@ -1403,6 +1403,11 @@ function saveCycles(data) {
       updatedAt: new Date().toISOString(),
     };
   }).filter((cycle) => cycle.startDate && (!cycle.endDate || diffDays(cycle.endDate, cycle.startDate) >= 0));
+  const editedIds = new Set(cycles.filter((cycle) => !cycle.isDraft).map((cycle) => cycle.id));
+  state.cycles = [
+    ...state.cycles.filter((cycle) => !editedIds.has(cycle.id)),
+    ...edited,
+  ];
   sanitizeCycles();
   saveState();
 }
@@ -1457,8 +1462,7 @@ function cyclesForEditor(date) {
   sanitizeCycles();
   const exact = state.cycles.find((cycle) => cycle.startDate === date);
   const containing = exact || state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
-  const ordered = containing ? [containing, ...state.cycles.filter((cycle) => cycle.id !== containing.id)] : [{ id: `draft-${date}`, startDate: date, endDate: "", isDraft: true }, ...state.cycles];
-  return ordered;
+  return containing ? [containing] : [{ id: `draft-${date}`, startDate: date, endDate: "", isDraft: true }];
 }
 
 function ensureCycleForDate(date) {
@@ -2178,7 +2182,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=46`);
+    history.replaceState(null, "", `${location.pathname}?v=47`);
     return;
   }
 
@@ -2191,7 +2195,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=46`);
+    history.replaceState(null, "", `${location.pathname}?v=47`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2207,7 +2211,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=46`);
+    history.replaceState(null, "", `${location.pathname}?v=47`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2231,7 +2235,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=46`);
+  history.replaceState(null, "", `${location.pathname}?v=47`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2265,7 +2269,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=46`);
+  history.replaceState(null, "", `${location.pathname}?v=47`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2333,7 +2337,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=46&${extraQuery}` : "?v=46";
+  const query = extraQuery ? `?v=47&${extraQuery}` : "?v=47";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2528,8 +2532,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v46")) {
-          sessionStorage.setItem("daily-box-reloaded-v46", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v47")) {
+          sessionStorage.setItem("daily-box-reloaded-v47", "1");
           location.reload();
         }
       });
