@@ -365,7 +365,7 @@ function renderHealthCard(key) {
     <section class="card section-card">
       <div class="card-title"><h2>女性健康</h2><span class="subtle">预测仅供参考</span></div>
       <p class="summary">${status.text}</p>
-      ${cycle ? `<p class="summary">${cycleDetailSummary(cycle)}</p>` : ""}
+      ${cycle ? `<p class="summary">${cycleDetailSummary(key, cycle)}</p>` : ""}
       <div class="health-row">
         ${status.open ? `<button class="secondary" data-action="end-cycle" data-date="${key}">标记结束</button>` : `<button class="secondary" data-action="start-cycle" data-date="${key}">标记开始</button>`}
         <button class="ghost" data-action="open-cycle-day" data-date="${key}">记录症状</button>
@@ -929,7 +929,7 @@ function renderDetailSheet(date) {
           ${historyHidden("journal") ? "" : `<div class="detail-item"><div><strong>今日小记</strong><span class="subtle">${entry.journal ? escapeHtml(entry.journal).replace(/\n/g, "<br>") : "未记录"}</span></div>${isFuture ? "" : `<button class="ghost" data-action="open-journal" data-date="${date}">${entry.journal ? "编辑" : "添加"}</button>`}</div>`}
           ${historyHidden("todos") ? "" : `<div class="detail-item"><div><strong>今日待办</strong><span class="subtle">${todoSummary(date)}</span></div><button class="ghost" data-action="manage-todos" data-date="${date}">查看</button></div>`}
           ${entry.tarot && !historyHidden("tarot") ? `<div class="detail-item"><div><strong>今日一抽</strong><span class="subtle">${tarotDetailText(entry.tarot)}</span></div></div>` : ""}
-          ${historyHidden("cycle") ? "" : `<div class="detail-item"><div><strong>女性健康</strong><span class="subtle">${cycleStatus(date).text}</span></div><button class="ghost" data-action="open-cycle" data-date="${date}">编辑</button></div>`}
+          ${historyHidden("cycle") ? "" : `<div class="detail-item"><div><strong>女性健康</strong><span class="subtle">${cycleDetailText(date)}</span></div><button class="ghost" data-action="open-cycle-day" data-date="${date}">编辑</button></div>`}
         </div>
       </section>
     </div>`;
@@ -1054,13 +1054,13 @@ function renderCycleDaySheet(date) {
       <section class="sheet" onclick="event.stopPropagation()">
         <div class="card-title"><h2>女性健康记录</h2><button class="ghost" data-action="close-sheet">关闭</button></div>
         <div class="subtle">${dateLabel(date)}</div>
-        <p class="summary">这些内容只保存在本设备，预测仅供记录参考。</p>
-        <form class="form" data-action="save-cycle-day" data-id="${cycle.id}">
+        <p class="summary">每天可以单独记录一次，保存后会自动同步。</p>
+        <form class="form" data-action="save-cycle-day" data-id="${cycle.id}" data-date="${date}">
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
-          ${chipsField("flow", "流量", state.settings.flowOptions, cycle.flow || "", false, "settings:flowOptions")}
-          ${numberField("pain", "痛感（0-5）", cycle.pain || "", 0, 5)}
-          ${chipsField("symptoms", "症状", state.settings.symptomOptions, cycle.symptoms || "", true, "settings:symptomOptions")}
-          ${chipsField("cycleMood", "情绪", state.settings.cycleMoodOptions, cycle.cycleMood || "", false, "settings:cycleMoodOptions")}
+          ${chipsField("flow", "流量", state.settings.flowOptions, cycleDayRecord(date, cycle).flow || "", false, "settings:flowOptions")}
+          ${numberField("pain", "痛感（0-5）", cycleDayRecord(date, cycle).pain || "", 0, 5)}
+          ${chipsField("symptoms", "症状", state.settings.symptomOptions, cycleDayRecord(date, cycle).symptoms || "", true, "settings:symptomOptions")}
+          ${chipsField("cycleMood", "情绪", state.settings.cycleMoodOptions, cycleDayRecord(date, cycle).cycleMood || "", false, "settings:cycleMoodOptions")}
           <button class="primary" type="submit">保存</button>
         </form>
       </section>
@@ -1173,7 +1173,7 @@ async function handleSubmit(event) {
   } else if (form.dataset.action === "save-cycle") {
     saveCycles(new FormData(form));
   } else if (form.dataset.action === "save-cycle-day") {
-    saveCycleDay(form.dataset.id, new FormData(form));
+    saveCycleDay(form.dataset.id, form.dataset.date, new FormData(form));
   } else if (form.dataset.action === "save-todo") {
     saveTodo(form.dataset.date, form.dataset.id, new FormData(form));
   } else if (form.dataset.action === "save-settings") {
@@ -1496,14 +1496,22 @@ function saveCycles(data) {
   saveState();
 }
 
-function saveCycleDay(id, data) {
+function saveCycleDay(id, date, data) {
   saveCycleLength(data);
   const cycle = state.cycles.find((item) => item.id === id);
   if (!cycle) return;
-  cycle.flow = data.get("flow") || "";
-  cycle.pain = data.get("pain") || "";
-  cycle.symptoms = data.get("symptoms") || "";
-  cycle.cycleMood = data.get("cycleMood") || "";
+  const entry = getEntry(date);
+  const record = {
+    flow: data.get("flow") || "",
+    pain: data.get("pain") || "",
+    symptoms: data.get("symptoms") || "",
+    cycleMood: data.get("cycleMood") || "",
+    cycleId: id,
+    updatedAt: new Date().toISOString(),
+  };
+  if (cycleDayHasContent(record)) entry.cycleDay = record;
+  else delete entry.cycleDay;
+  entry.updatedAt = new Date().toISOString();
   cycle.updatedAt = new Date().toISOString();
   saveState();
 }
@@ -1542,6 +1550,14 @@ function cycleForDate(date) {
   return state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
 }
 
+function cycleDetailText(date) {
+  const cycle = cycleForDate(date);
+  const record = cycleDayRecord(date, cycle);
+  const summary = cycleDayHasContent(record) ? cycleDetailSummary(date, cycle) : "";
+  const status = cycle ? cycleStatus(date).text : "当天症状记录";
+  return summary ? `${status} · ${summary}` : status;
+}
+
 function cyclesForEditor(date) {
   sanitizeCycles();
   const exact = state.cycles.find((cycle) => cycle.startDate === date);
@@ -1559,13 +1575,30 @@ function ensureCycleForDate(date) {
   return cycle;
 }
 
-function cycleDetailSummary(cycle) {
+function cycleDayRecord(date, cycle) {
+  const entryRecord = state.entries[date]?.cycleDay;
+  if (entryRecord) return entryRecord;
+  if (!cycle) return {};
+  return {
+    flow: cycle.flow || "",
+    pain: cycle.pain || "",
+    symptoms: cycle.symptoms || "",
+    cycleMood: cycle.cycleMood || "",
+  };
+}
+
+function cycleDayHasContent(record) {
+  return Boolean(record && (record.flow || record.pain || record.symptoms || record.cycleMood));
+}
+
+function cycleDetailSummary(date, cycle) {
+  const record = cycleDayRecord(date, cycle);
   const bits = [];
-  if (cycle.flow) bits.push(`流量 ${cycle.flow}`);
-  if (cycle.pain) bits.push(`痛感 ${cycle.pain}/5`);
-  if (cycle.symptoms) bits.push(`症状 ${cycle.symptoms}`);
-  if (cycle.cycleMood) bits.push(`情绪 ${cycle.cycleMood}`);
-  return bits.length ? bits.join(" · ") : "还没有记录流量、痛感、症状和情绪。";
+  if (record.flow) bits.push(`流量 ${record.flow}`);
+  if (record.pain) bits.push(`痛感 ${record.pain}/5`);
+  if (record.symptoms) bits.push(`症状 ${record.symptoms}`);
+  if (record.cycleMood) bits.push(`情绪 ${record.cycleMood}`);
+  return bits.length ? bits.join(" · ") : "今天还没有记录流量、痛感、症状和情绪。";
 }
 
 function isActualCycleDay(date) {
@@ -1729,6 +1762,7 @@ function matchesFilter(entry, date) {
   if (calendarFilter === "todos") return todosForDate(date).length > 0;
   if (calendarFilter.startsWith("custom:")) return Boolean((entry.customRecords || {})[calendarFilter.replace("custom:", "")]);
   if (calendarFilter === "period") return isActualCycleDay(date);
+  if (calendarFilter === "cycle") return isActualCycleDay(date) || cycleDayHasContent(entry.cycleDay);
   if (historyHidden(calendarFilter)) return false;
   return Boolean(entry[calendarFilter]);
 }
@@ -1769,7 +1803,7 @@ function cleanupFilterOptions() {
 }
 
 function hasRecordsForFilter(filter) {
-  if (filter === "cycle") return state.cycles.length > 0;
+  if (filter === "cycle") return state.cycles.length > 0 || Object.values(state.entries).some((entry) => cycleDayHasContent(entry.cycleDay));
   if (filter === "todos") return (state.todos || []).length > 0;
   if (filter.startsWith("custom:")) {
     const ids = customIdsForFilter(filter);
@@ -1796,6 +1830,7 @@ function deleteSelectedFilterRecords() {
   if (!confirm("是否删除？")) return;
   if (selected === "cycle") {
     state.cycles = [];
+    Object.values(state.entries).forEach((entry) => delete entry.cycleDay);
   }
   if (selected === "todos") {
     state.todos = [];
@@ -1898,6 +1933,7 @@ function hasAnyEntry(entry) {
   return Boolean(
     entry &&
       (["mood", "fitness", "study", "outing", "tarot", "journal"].some((key) => entry[key]) ||
+        cycleDayHasContent(entry.cycleDay) ||
         Object.keys(entry.customRecords || {}).filter((id) => !historyHidden(id)).length ||
         todosForDate(entry.date).length),
   );
@@ -2266,7 +2302,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=48`);
+    history.replaceState(null, "", `${location.pathname}?v=49`);
     return;
   }
 
@@ -2279,7 +2315,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=48`);
+    history.replaceState(null, "", `${location.pathname}?v=49`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2295,7 +2331,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=48`);
+    history.replaceState(null, "", `${location.pathname}?v=49`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2319,7 +2355,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=48`);
+  history.replaceState(null, "", `${location.pathname}?v=49`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2353,7 +2389,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=48`);
+  history.replaceState(null, "", `${location.pathname}?v=49`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2421,7 +2457,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=48&${extraQuery}` : "?v=48";
+  const query = extraQuery ? `?v=49&${extraQuery}` : "?v=49";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2616,8 +2652,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v48")) {
-          sessionStorage.setItem("daily-box-reloaded-v48", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v49")) {
+          sessionStorage.setItem("daily-box-reloaded-v49", "1");
           location.reload();
         }
       });
