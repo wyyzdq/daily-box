@@ -1660,7 +1660,7 @@ function startCycle(date) {
 
 function endCycle(date) {
   closeStaleCycles();
-  const cycle = cycleForDate(date) || state.cycles.find((item) => !item.endDate && diffDays(date, item.startDate) >= 0);
+  const cycle = editableCycleForDate(date) || state.cycles.find((item) => !item.endDate && diffDays(date, item.startDate) >= 0);
   if (!cycle) return;
   cycle.endDate = date;
   cycle.autoClosed = false;
@@ -1748,7 +1748,7 @@ function saveCycleLength(data) {
 
 function cycleForDate(date) {
   closeStaleCycles();
-  return state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
+  return editableCycleForDate(date);
 }
 
 function cycleDetailText(date) {
@@ -1761,9 +1761,18 @@ function cycleDetailText(date) {
 
 function cyclesForEditor(date) {
   sanitizeCycles();
-  const exact = state.cycles.find((cycle) => cycle.startDate === date);
-  const containing = exact || state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
-  return containing ? [containing] : [{ id: `draft-${date}`, startDate: date, endDate: "", isDraft: true }];
+  const cycle = editableCycleForDate(date);
+  return cycle ? [cycle] : [{ id: `draft-${date}`, startDate: date, endDate: "", isDraft: true }];
+}
+
+function editableCycleForDate(date) {
+  const containing = state.cycles
+    .filter((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()))
+    .sort((a, b) => cycleSpanDays(b, date) - cycleSpanDays(a, date) || a.startDate.localeCompare(b.startDate))[0];
+  if (containing) return containing;
+  return state.cycles
+    .filter((cycle) => diffDays(date, cycle.startDate) >= 0 && diffDays(date, cycle.startDate) <= 10)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
 }
 
 function ensureCycleForDate(date) {
@@ -1854,12 +1863,50 @@ function sanitizeCycles(shouldSave = true) {
     }
     return true;
   });
+  state.cycles.forEach((cycle) => {
+    if (cycleSpanDays(cycle) > 2) return;
+    const cycleEnd = cycle.endDate || todayKey();
+    const previous = state.cycles
+      .filter((other) => other.id !== cycle.id && other.startDate < cycle.startDate && cycleSpanDays(other) >= 3)
+      .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+    if (!previous) return;
+    const previousEnd = previous.endDate || todayKey();
+    if (diffDays(cycle.startDate, previousEnd) < 0 || diffDays(cycle.startDate, previousEnd) > 1) return;
+    if (!previous.endDate || previous.endDate < cycleEnd) {
+      previous.endDate = cycleEnd;
+      previous.autoClosed = false;
+      previous.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  });
+  state.cycles = state.cycles.filter((cycle, index, cycles) => {
+    const duplicateInsideLonger = cycles.some((other, otherIndex) => {
+      if (index === otherIndex || !other.startDate) return false;
+      const otherEnd = other.endDate || todayKey();
+      const cycleEnd = cycle.endDate || todayKey();
+      return (
+        cycle.startDate >= other.startDate &&
+        cycleEnd <= otherEnd &&
+        cycleSpanDays(other) > cycleSpanDays(cycle) &&
+        cycleSpanDays(cycle) <= 2
+      );
+    });
+    if (duplicateInsideLonger) {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
   if (changed && shouldSave) saveState();
   return changed;
 }
 
 function dateInRange(date, start, end) {
   return date >= start && date <= end;
+}
+
+function cycleSpanDays(cycle, fallbackEnd = todayKey()) {
+  return diffDays(cycle.endDate || fallbackEnd, cycle.startDate) + 1;
 }
 
 function recordExists(type, date) {
@@ -2513,7 +2560,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=51`);
+    history.replaceState(null, "", `${location.pathname}?v=52`);
     return;
   }
 
@@ -2526,7 +2573,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=51`);
+    history.replaceState(null, "", `${location.pathname}?v=52`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2542,7 +2589,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=51`);
+    history.replaceState(null, "", `${location.pathname}?v=52`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2566,7 +2613,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=51`);
+  history.replaceState(null, "", `${location.pathname}?v=52`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2600,7 +2647,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=51`);
+  history.replaceState(null, "", `${location.pathname}?v=52`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2668,7 +2715,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=51&${extraQuery}` : "?v=51";
+  const query = extraQuery ? `?v=52&${extraQuery}` : "?v=52";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2863,8 +2910,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v51")) {
-          sessionStorage.setItem("daily-box-reloaded-v51", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v52")) {
+          sessionStorage.setItem("daily-box-reloaded-v52", "1");
           location.reload();
         }
       });
