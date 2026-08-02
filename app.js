@@ -1264,20 +1264,28 @@ function renderCycleSheet(date) {
 
 function renderCycleDaySheet(date) {
   closeStaleCycles();
-  const cycle = ensureCycleForDate(date);
+  const cycle = cycleForDate(date);
+  const record = cycleDayRecord(date, cycle);
   return `
     <div class="sheet-backdrop" data-action="close-sheet">
       <section class="sheet" onclick="event.stopPropagation()">
         <div class="card-title"><h2>女性健康记录</h2><button class="ghost" data-action="close-sheet">关闭</button></div>
         <div class="subtle">${dateLabel(date)}</div>
-        <p class="summary">每天可以单独记录一次，保存后会自动同步。</p>
-        <form class="form" data-action="save-cycle-day" data-id="${cycle.id}" data-date="${date}">
+        <p class="summary">${cycle ? cycleStatus(date).text : "这一天还没有周期记录，可以先标记开始。"}</p>
+        <div class="actions-row" style="margin-top:12px">
+          ${cycle ? "" : `<button class="secondary" data-action="start-cycle" data-date="${date}">标记开始</button>`}
+          ${cycle && !cycle.endDate ? `<button class="secondary" data-action="end-cycle" data-date="${date}">标记结束</button>` : ""}
+          ${cycle && cycle.endDate ? `<button class="secondary" disabled>已结束</button>` : ""}
+          ${cycle ? `<button class="ghost" data-action="open-cycle" data-date="${date}">管理当前周期</button><button class="danger" data-action="delete-cycle" data-id="${cycle.id}">删除周期</button>` : ""}
+        </div>
+        <p class="summary" style="margin-top:12px">每天可以单独记录一次，保存后会自动同步。</p>
+        <form class="form" data-action="save-cycle-day" data-id="${cycle ? cycle.id : ""}" data-date="${date}">
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
-          ${chipsField("flow", "流量", state.settings.flowOptions, cycleDayRecord(date, cycle).flow || "", false, "settings:flowOptions")}
-          ${numberField("pain", "痛感（0-5）", cycleDayRecord(date, cycle).pain || "", 0, 5)}
-          ${chipsField("symptoms", "症状", state.settings.symptomOptions, cycleDayRecord(date, cycle).symptoms || "", true, "settings:symptomOptions")}
-          ${chipsField("cycleMood", "情绪", state.settings.cycleMoodOptions, cycleDayRecord(date, cycle).cycleMood || "", false, "settings:cycleMoodOptions")}
-          <button class="primary" type="submit">保存</button>
+          ${chipsField("flow", "流量", state.settings.flowOptions, record.flow || "", false, "settings:flowOptions")}
+          ${numberField("pain", "痛感（0-5）", record.pain || "", 0, 5)}
+          ${chipsField("symptoms", "症状", state.settings.symptomOptions, record.symptoms || "", true, "settings:symptomOptions")}
+          ${chipsField("cycleMood", "情绪", state.settings.cycleMoodOptions, record.cycleMood || "", false, "settings:cycleMoodOptions")}
+          <button class="primary" type="submit" ${cycle ? "" : "disabled"}>${cycle ? "保存" : "先标记开始"}</button>
         </form>
       </section>
     </div>`;
@@ -2576,7 +2584,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=56`);
+    history.replaceState(null, "", `${location.pathname}?v=57`);
     return;
   }
 
@@ -2589,7 +2597,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=56`);
+    history.replaceState(null, "", `${location.pathname}?v=57`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2605,7 +2613,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=56`);
+    history.replaceState(null, "", `${location.pathname}?v=57`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2629,7 +2637,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=56`);
+  history.replaceState(null, "", `${location.pathname}?v=57`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2663,7 +2671,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=56`);
+  history.replaceState(null, "", `${location.pathname}?v=57`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2731,7 +2739,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=56&${extraQuery}` : "?v=56";
+  const query = extraQuery ? `?v=57&${extraQuery}` : "?v=57";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2926,8 +2934,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v56")) {
-          sessionStorage.setItem("daily-box-reloaded-v56", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v57")) {
+          sessionStorage.setItem("daily-box-reloaded-v57", "1");
           location.reload();
         }
       });
