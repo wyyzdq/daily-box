@@ -1722,7 +1722,7 @@ function deleteCycle(id) {
 
 function cycleStatus(date) {
   closeStaleCycles();
-  const actual = state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
+  const actual = editableCycleForDate(date);
   if (actual) {
     const dayText = `经期第 ${diffDays(date, actual.startDate) + 1} 天`;
     return { open: !actual.endDate, text: actual.endDate ? `${dayText} · 已结束` : dayText };
@@ -1887,8 +1887,7 @@ function sanitizeCycles(shouldSave = true) {
       return (
         cycle.startDate >= other.startDate &&
         cycleEnd <= otherEnd &&
-        cycleSpanDays(other) > cycleSpanDays(cycle) &&
-        cycleSpanDays(cycle) <= 2
+        cycleSpanDays(other) > cycleSpanDays(cycle)
       );
     });
     if (duplicateInsideLonger) {
@@ -2560,7 +2559,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=52`);
+    history.replaceState(null, "", `${location.pathname}?v=53`);
     return;
   }
 
@@ -2573,7 +2572,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=52`);
+    history.replaceState(null, "", `${location.pathname}?v=53`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2589,7 +2588,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=52`);
+    history.replaceState(null, "", `${location.pathname}?v=53`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2613,7 +2612,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=52`);
+  history.replaceState(null, "", `${location.pathname}?v=53`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2647,7 +2646,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=52`);
+  history.replaceState(null, "", `${location.pathname}?v=53`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2715,7 +2714,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=52&${extraQuery}` : "?v=52";
+  const query = extraQuery ? `?v=53&${extraQuery}` : "?v=53";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2910,8 +2909,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v52")) {
-          sessionStorage.setItem("daily-box-reloaded-v52", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v53")) {
+          sessionStorage.setItem("daily-box-reloaded-v53", "1");
           location.reload();
         }
       });
