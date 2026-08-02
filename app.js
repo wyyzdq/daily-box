@@ -334,12 +334,206 @@ function tarotKeywords(tarot) {
 
 function tarotMessage(tarot) {
   if (!tarot) return "";
+  const reading = tarotReading(tarot);
+  if (reading) return reading;
   if (tarot.orientation === "reversed") {
     const keywords = tarotKeywords(tarot);
     const hint = keywords.length ? keywords.join("、") : "今天的状态";
     return tarot.reversedMessage || `这张牌逆位时，提醒你留意「${hint}」里被卡住、过度消耗或还没说清的部分。先慢一点，别急着把答案固定下来。`;
   }
   return tarot.uprightMessage || tarot.message || "";
+}
+
+function tarotReading(tarot) {
+  const upright = tarot.orientation !== "reversed";
+  const major = majorArcanaReadings[tarot.id];
+  if (major) return upright ? major.upright : major.reversed;
+  const minor = minorArcanaReading(tarot.id, upright);
+  return minor || "";
+}
+
+const majorArcanaReadings = {
+  fool: {
+    upright: "愚者正位代表新的开始、自由和信任未知。今天适合轻装上路，但要保留基本判断，不要把冲动误当勇气。",
+    reversed: "愚者逆位常指鲁莽、逃避后果或迟迟不敢开始。先看清风险和责任，再决定要不要迈出这一步。",
+  },
+  magician: {
+    upright: "魔术师正位代表意志、资源整合和主动创造。你手里已有工具，关键是把想法落到具体行动。",
+    reversed: "魔术师逆位提醒操控、分心或有资源却用不上。别急着证明能力，先确认动机和方法是否诚实有效。",
+  },
+  priestess: {
+    upright: "女祭司正位代表直觉、潜意识和暂时保留。答案未必在表面，今天适合观察、倾听和等待信息浮现。",
+    reversed: "女祭司逆位常指忽视直觉、秘密混乱或信息不透明。不要只听表面说法，也别压下心里那个不对劲的感觉。",
+  },
+  empress: {
+    upright: "皇后正位代表滋养、丰盛、身体感和创造力。把注意力放回真实需要，温柔照顾会带来更稳定的生长。",
+    reversed: "皇后逆位提醒过度付出、依赖认可或忽略身体。先把能量收回一点，照顾自己不是自私。",
+  },
+  emperor: {
+    upright: "皇帝正位代表结构、边界和稳定掌控。今天适合定规则、做安排，用清楚的秩序保护重要的事。",
+    reversed: "皇帝逆位可能是控制过度、僵硬或缺少边界。别用强撑维持秩序，真正的稳定需要弹性。",
+  },
+  hierophant: {
+    upright: "教皇正位代表传统、学习、制度和可信指导。遇到不确定时，可以借助成熟方法或向可靠的人请教。",
+    reversed: "教皇逆位提醒盲从、教条或与旧规则不合。你可以尊重经验，但不必把别人的标准全盘接过来。",
+  },
+  lovers: {
+    upright: "恋人正位代表关系、价值选择和真诚连接。真正的选择不是讨好谁，而是靠近你愿意承担的心意。",
+    reversed: "恋人逆位常指关系失衡、逃避选择或价值不一致。先把自己的需要说清楚，含糊会让消耗变大。",
+  },
+  chariot: {
+    upright: "战车正位代表推进、意志力和方向统一。只要目标清楚，今天适合主动推进并把分散的力量收拢。",
+    reversed: "战车逆位提醒失控、用力过猛或方向互相拉扯。先停下来校准路线，不要靠硬冲解决所有问题。",
+  },
+  strength: {
+    upright: "力量正位代表温柔的勇气、自控和内在韧性。今天不是靠压制取胜，而是用耐心安抚冲突。",
+    reversed: "力量逆位可能是自我怀疑、情绪压抑或耐心耗尽。别苛责自己的脆弱，先恢复能量再处理问题。",
+  },
+  hermit: {
+    upright: "隐者正位代表独处、内省和寻找内在答案。减少外界噪音，会更容易看见真正重要的方向。",
+    reversed: "隐者逆位提醒孤立、逃避交流或困在自己的想法里。独处可以充电，但别把自己关到没人能靠近。",
+  },
+  wheel: {
+    upright: "命运之轮正位代表转机、周期变化和顺势而动。局面正在流动，抓住窗口比死守旧计划更重要。",
+    reversed: "命运之轮逆位常指反复、停滞或抗拒变化。先看清循环模式，别用旧反应回应新机会。",
+  },
+  justice: {
+    upright: "正义正位代表因果、判断、公平和清晰边界。今天适合按事实做决定，承担该承担的，也放下不属于你的。",
+    reversed: "正义逆位提醒偏见、不公平或回避责任。先核对事实，不要让情绪替证据下结论。",
+  },
+  hanged: {
+    upright: "倒吊人正位代表暂停、换视角和必要的等待。眼下慢下来不是失败，而是在换一种看见问题的方式。",
+    reversed: "倒吊人逆位常指无意义拖延、牺牲感或卡住不动。问问自己是在等待时机，还是在回避行动。",
+  },
+  death: {
+    upright: "死神正位代表结束、转化和旧阶段脱落。它不一定是坏事，而是提醒你给新生活腾出位置。",
+    reversed: "死神逆位提醒抗拒结束、旧事拖住你或迟迟不愿更新。真正消耗你的，可能正是你舍不得放下的部分。",
+  },
+  temperance: {
+    upright: "节制正位代表调和、疗愈和稳定节奏。今天适合把极端拉回中间，用小步调整恢复平衡。",
+    reversed: "节制逆位常指失衡、过量或节奏混乱。先减少刺激和拉扯，别让身心一直处在过载里。",
+  },
+  devil: {
+    upright: "恶魔正位代表束缚、欲望、执念和看见阴影。它提醒你识别让自己上瘾或失去自由的模式。",
+    reversed: "恶魔逆位代表松绑、觉察依赖或从旧模式中抽身。你已经开始看见问题，下一步是减少它对你的控制。",
+  },
+  tower: {
+    upright: "高塔正位代表突变、真相揭开和旧结构崩塌。看似混乱的事情，可能是在拆掉本来就不稳的部分。",
+    reversed: "高塔逆位提醒压着不爆、害怕改变或灾后重建。别假装没事，越早修正，代价越小。",
+  },
+  star: {
+    upright: "星星正位代表希望、疗愈、信任和长远愿景。今天适合恢复信心，把注意力放在真正滋养你的方向。",
+    reversed: "星星逆位常指失望、信念变弱或看不见未来。先照顾当下的小恢复，光不是一下子回来的。",
+  },
+  moon: {
+    upright: "月亮正位代表迷雾、情绪、梦境和潜意识。信息还不完整，今天别急着定论，先分辨恐惧和直觉。",
+    reversed: "月亮逆位代表迷雾散开、焦虑暴露或真相慢慢浮现。承认不安之后，你会更容易看清现实。",
+  },
+  sun: {
+    upright: "太阳正位代表明朗、生命力、坦诚和成功。今天适合把事情摊到光下，简单直接反而有力量。",
+    reversed: "太阳逆位提醒快乐打折、自信不足或期待过高。好事仍在，只是需要降低表演感，回到真实感受。",
+  },
+  judgement: {
+    upright: "审判正位代表觉醒、复盘、回应召唤和重新选择。过去的经验正在要求你做一个更成熟的决定。",
+    reversed: "审判逆位常指自责、逃避复盘或不敢回应改变。别困在评判里，真正重要的是你现在选择怎么做。",
+  },
+  world: {
+    upright: "世界正位代表完成、整合、阶段圆满和更大的视野。你走到一个节点，可以总结成果并准备进入下一轮。",
+    reversed: "世界逆位提醒未完成、收尾拖延或缺少整合。别急着开新局，先把最后一块拼图放好。",
+  },
+};
+
+const suitReadings = {
+  wands: {
+    name: "权杖",
+    theme: "行动、热情、创造力和目标推进",
+    reversedTheme: "冲动、耗竭、拖延或方向分散",
+  },
+  cups: {
+    name: "圣杯",
+    theme: "情绪、关系、直觉和内在满足",
+    reversedTheme: "情绪堵塞、依赖、失落或关系失衡",
+  },
+  swords: {
+    name: "宝剑",
+    theme: "思考、沟通、判断和冲突处理",
+    reversedTheme: "过度思虑、逃避沟通、混乱或尖锐伤害",
+  },
+  pentacles: {
+    name: "星币",
+    theme: "现实、金钱、身体、工作和长期积累",
+    reversedTheme: "资源卡住、懒散、焦虑或现实基础不稳",
+  },
+};
+
+const rankReadings = {
+  ace: {
+    upright: "王牌代表一种新能量的种子，适合开始、接住机会，并把灵感落实成第一步。",
+    reversed: "王牌逆位说明机会还没完全落地，可能是动力不足、时机未成熟，或你还没准备好接住它。",
+  },
+  "2": {
+    upright: "二号牌代表选择、平衡和两股力量之间的协调。先看清双方需求，再决定怎么分配精力。",
+    reversed: "二号牌逆位提醒摇摆、失衡或逃避选择。越想两边都不得罪，越容易把自己卡住。",
+  },
+  "3": {
+    upright: "三号牌代表初步成果、合作和向外扩展。你已经不在原点，可以开始看见下一阶段的可能。",
+    reversed: "三号牌逆位常指协作不顺、期待落空或扩展受阻。先修正基础配合，再谈更大的进展。",
+  },
+  "4": {
+    upright: "四号牌代表稳定、结构和安全感。今天适合巩固成果，把边界、节奏和日常安排放稳。",
+    reversed: "四号牌逆位提醒安全感变成停滞，或结构已经限制你。稳定很好，但不要因此拒绝必要的变化。",
+  },
+  "5": {
+    upright: "五号牌代表冲突、挑战和不舒服的调整。问题浮出来不是坏事，它让你看见哪里需要重新分配力量。",
+    reversed: "五号牌逆位通常表示冲突降温、内耗减少，或你正在从困难里恢复。别急着回到旧模式。",
+  },
+  "6": {
+    upright: "六号牌代表过渡、支持、认可和逐渐恢复秩序。接受帮助或看见阶段成果，会让路更顺。",
+    reversed: "六号牌逆位提醒迟迟走不出来、认可不足或支持失衡。先承认真实进度，不要拿自己和理想状态硬比。",
+  },
+  "7": {
+    upright: "七号牌代表考验、坚持、防守和深入选择。你需要守住核心立场，但也要分清什么值得继续投入。",
+    reversed: "七号牌逆位常指防御过度、信念动摇或力气分散。与其硬撑所有战场，不如选一个真正重要的。",
+  },
+  "8": {
+    upright: "八号牌代表推进、练习、速度和持续投入。重复的小动作会累积成果，关键是保持节奏。",
+    reversed: "八号牌逆位提醒延迟、急躁或努力方向不准。先校准方法，别只靠增加用力来解决。",
+  },
+  "9": {
+    upright: "九号牌代表临近完成、经验累积和最后的韧性。你已经走过不少，今天要保护体力和边界。",
+    reversed: "九号牌逆位常指疲惫、警觉过度或快到终点却想放弃。先休整，不要把耗尽当作失败。",
+  },
+  "10": {
+    upright: "十号牌代表一个阶段的满载、完成或压力顶点。该收尾的收尾，该分担的分担，不必什么都自己扛。",
+    reversed: "十号牌逆位提醒释放负担、结束拖累，或压力已经超过可持续范围。减法比继续硬撑更重要。",
+  },
+  page: {
+    upright: "侍从代表学习、探索和新消息。保持好奇，允许自己从不熟练开始。",
+    reversed: "侍从逆位提醒三分钟热度、消息延迟或准备不足。先补基础，不要急着表现成熟。",
+  },
+  knight: {
+    upright: "骑士代表行动、追求和明显推进。它鼓励你动起来，但也要看清节奏和后果。",
+    reversed: "骑士逆位常指鲁莽、停滞或用力方向偏了。行动前先问：这是勇敢，还是急着逃离不安？",
+  },
+  queen: {
+    upright: "王后代表成熟的接纳、滋养和稳定影响力。你可以用更柔韧的方式掌握局面。",
+    reversed: "王后逆位提醒照顾失衡、情绪内耗或把能量过度给出去。先把自己放回中心。",
+  },
+  king: {
+    upright: "国王代表掌控、责任、成熟判断和对外影响力。今天适合用清晰原则来做决定。",
+    reversed: "国王逆位常指控制欲、僵硬或责任压身。真正的掌控不是压住一切，而是知道何时调整。",
+  },
+};
+
+function minorArcanaReading(id, upright) {
+  const [suit, rank] = id.split("-");
+  const suitInfo = suitReadings[suit];
+  const rankInfo = rankReadings[rank];
+  if (!suitInfo || !rankInfo) return "";
+  const direction = upright ? "正位" : "逆位";
+  const rankText = upright ? rankInfo.upright : rankInfo.reversed;
+  const suitText = upright ? suitInfo.theme : suitInfo.reversedTheme;
+  return `${suitInfo.name}${direction}聚焦${suitText}。${rankText}`;
 }
 
 function tarotDetailText(tarot) {
@@ -361,15 +555,15 @@ function renderRecordCard(type, record, key) {
 function renderHealthCard(key) {
   const status = cycleStatus(key);
   const cycle = cycleForDate(key);
-  const primaryCycleAction = cycle ? "end-cycle" : "start-cycle";
-  const primaryCycleLabel = cycle ? "标记结束" : "标记开始";
+  const primaryCycleAction = cycle && !cycle.endDate ? "end-cycle" : "start-cycle";
+  const primaryCycleLabel = cycle ? (cycle.endDate ? "已结束" : "标记结束") : "标记开始";
   return `
     <section class="card section-card">
       <div class="card-title"><h2>女性健康</h2><span class="subtle">预测仅供参考</span></div>
       <p class="summary">${status.text}</p>
       ${cycle ? `<p class="summary">${cycleDetailSummary(key, cycle)}</p>` : ""}
       <div class="health-row">
-        <button class="secondary" data-action="${primaryCycleAction}" data-date="${key}">${primaryCycleLabel}</button>
+        <button class="secondary" data-action="${primaryCycleAction}" data-date="${key}" ${cycle?.endDate ? "disabled" : ""}>${primaryCycleLabel}</button>
         <button class="ghost" data-action="open-cycle-day" data-date="${key}">记录症状</button>
         <button class="ghost" data-action="open-cycle" data-date="${key}">管理周期</button>
       </div>
@@ -1466,10 +1660,11 @@ function startCycle(date) {
 
 function endCycle(date) {
   closeStaleCycles();
-  const open = state.cycles.find((cycle) => !cycle.endDate && diffDays(date, cycle.startDate) >= 0);
-  if (!open) return;
-  open.endDate = date;
-  open.updatedAt = new Date().toISOString();
+  const cycle = cycleForDate(date) || state.cycles.find((item) => !item.endDate && diffDays(date, item.startDate) >= 0);
+  if (!cycle) return;
+  cycle.endDate = date;
+  cycle.autoClosed = false;
+  cycle.updatedAt = new Date().toISOString();
   saveState();
 }
 
@@ -1528,7 +1723,10 @@ function deleteCycle(id) {
 function cycleStatus(date) {
   closeStaleCycles();
   const actual = state.cycles.find((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()));
-  if (actual) return { open: !actual.endDate, text: `经期第 ${diffDays(date, actual.startDate) + 1} 天` };
+  if (actual) {
+    const dayText = `经期第 ${diffDays(date, actual.startDate) + 1} 天`;
+    return { open: !actual.endDate, text: actual.endDate ? `${dayText} · 已结束` : dayText };
+  }
   const last = [...state.cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
   if (!last) return { open: false, text: "还没有周期记录" };
   const nextStart = addDays(last.startDate, cycleLengthDays());
@@ -1614,8 +1812,18 @@ function isPredictedCycleDay(date) {
   const last = [...state.cycles].filter((cycle) => cycle.startDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
   if (!last) return false;
   const start = addDays(last.startDate, cycleLengthDays());
-  const length = last.endDate ? diffDays(last.endDate, last.startDate) + 1 : 5;
+  const length = predictedPeriodLengthDays();
   return dateInRange(date, start, addDays(start, length - 1));
+}
+
+function predictedPeriodLengthDays() {
+  const lengths = state.cycles
+    .filter((cycle) => cycle.startDate && cycle.endDate && cycle.autoClosed !== true)
+    .map((cycle) => diffDays(cycle.endDate, cycle.startDate) + 1)
+    .filter((days) => days >= 3 && days <= 8);
+  if (!lengths.length) return 5;
+  const average = lengths.reduce((sum, days) => sum + days, 0) / lengths.length;
+  return Math.min(8, Math.max(3, Math.round(average)));
 }
 
 function closeStaleCycles() {
@@ -2305,7 +2513,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=50`);
+    history.replaceState(null, "", `${location.pathname}?v=51`);
     return;
   }
 
@@ -2318,7 +2526,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=50`);
+    history.replaceState(null, "", `${location.pathname}?v=51`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2334,7 +2542,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=50`);
+    history.replaceState(null, "", `${location.pathname}?v=51`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2358,7 +2566,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=50`);
+  history.replaceState(null, "", `${location.pathname}?v=51`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2392,7 +2600,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=50`);
+  history.replaceState(null, "", `${location.pathname}?v=51`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2460,7 +2668,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=50&${extraQuery}` : "?v=50";
+  const query = extraQuery ? `?v=51&${extraQuery}` : "?v=51";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2655,8 +2863,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v50")) {
-          sessionStorage.setItem("daily-box-reloaded-v50", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v51")) {
+          sessionStorage.setItem("daily-box-reloaded-v51", "1");
           location.reload();
         }
       });
