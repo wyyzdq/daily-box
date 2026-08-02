@@ -1142,7 +1142,7 @@ function renderCycleDetailItem(date, isFuture) {
       <div><strong>女性健康</strong><span class="subtle">${status}</span></div>
       ${
         isFuture
-          ? `<button class="ghost" data-action="open-cycle" data-date="${date}">查看</button>`
+          ? `<span class="subtle">预测</span>`
           : `<div class="actions-row">${cycleAction}${endAction}${ended}<button class="ghost" data-action="open-cycle-day" data-date="${date}">记录症状</button><button class="ghost" data-action="open-cycle" data-date="${date}">管理周期</button></div>`
       }
     </div>`;
@@ -1239,6 +1239,7 @@ function detailItem(type, record, date, isFuture) {
 function renderCycleSheet(date) {
   closeStaleCycles();
   const cycles = cyclesForEditor(date);
+  const empty = !cycles.length;
   return `
     <div class="sheet-backdrop" data-action="close-sheet">
       <section class="sheet" onclick="event.stopPropagation()">
@@ -1246,6 +1247,7 @@ function renderCycleSheet(date) {
         <p class="summary">日期根据你设置的周期长度估算，仅供记录参考，不作为医疗建议。</p>
         <form class="form" data-action="save-cycle">
           ${numberField("cycleLengthDays", "周期长度（天）", cycleLengthDays(), 15, 60)}
+          ${empty ? `<p class="summary">这一天还没有周期记录。需要补记时，请回到日期详情里点“标记开始”。</p>` : ""}
           ${cycles.map((cycle, index) => `
             <div class="card section-card cycle-edit-card">
               <input type="hidden" name="id-${index}" value="${cycle.id}" />
@@ -1779,7 +1781,7 @@ function cycleDetailText(date) {
 function cyclesForEditor(date) {
   sanitizeCycles();
   const cycle = editableCycleForDate(date);
-  return cycle ? [cycle] : [{ id: `draft-${date}`, startDate: date, endDate: "", isDraft: true }];
+  return cycle ? [cycle] : [];
 }
 
 function editableCycleForDate(date) {
@@ -2573,7 +2575,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=54`);
+    history.replaceState(null, "", `${location.pathname}?v=55`);
     return;
   }
 
@@ -2586,7 +2588,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=54`);
+    history.replaceState(null, "", `${location.pathname}?v=55`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2602,7 +2604,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=54`);
+    history.replaceState(null, "", `${location.pathname}?v=55`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2626,7 +2628,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=54`);
+  history.replaceState(null, "", `${location.pathname}?v=55`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2660,7 +2662,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=54`);
+  history.replaceState(null, "", `${location.pathname}?v=55`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2728,7 +2730,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=54&${extraQuery}` : "?v=54";
+  const query = extraQuery ? `?v=55&${extraQuery}` : "?v=55";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2923,8 +2925,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v54")) {
-          sessionStorage.setItem("daily-box-reloaded-v54", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v55")) {
+          sessionStorage.setItem("daily-box-reloaded-v55", "1");
           location.reload();
         }
       });
