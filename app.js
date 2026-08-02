@@ -1137,13 +1137,14 @@ function renderCycleDetailItem(date, isFuture) {
   const cycleAction = !cycle ? `<button class="secondary" data-action="start-cycle" data-date="${date}">标记开始</button>` : "";
   const endAction = cycle && !cycle.endDate ? `<button class="secondary" data-action="end-cycle" data-date="${date}">标记结束</button>` : "";
   const ended = cycle && cycle.endDate ? `<button class="secondary" disabled>已结束</button>` : "";
+  const deleteAction = cycle ? `<button class="danger" data-action="delete-cycle" data-id="${cycle.id}">删除周期</button>` : "";
   return `
     <div class="detail-item">
       <div><strong>女性健康</strong><span class="subtle">${status}</span></div>
       ${
         isFuture
           ? `<span class="subtle">预测</span>`
-          : `<div class="actions-row">${cycleAction}${endAction}${ended}<button class="ghost" data-action="open-cycle-day" data-date="${date}">记录症状</button><button class="ghost" data-action="open-cycle" data-date="${date}">管理周期</button></div>`
+          : `<div class="actions-row">${cycleAction}${endAction}${ended}${cycle ? `<button class="ghost" data-action="open-cycle-day" data-date="${date}">记录症状</button><button class="ghost" data-action="open-cycle" data-date="${date}">管理当前周期</button>${deleteAction}` : ""}</div>`
       }
     </div>`;
 }
@@ -2575,7 +2576,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=55`);
+    history.replaceState(null, "", `${location.pathname}?v=56`);
     return;
   }
 
@@ -2588,7 +2589,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=55`);
+    history.replaceState(null, "", `${location.pathname}?v=56`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2604,7 +2605,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=55`);
+    history.replaceState(null, "", `${location.pathname}?v=56`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2628,7 +2629,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=55`);
+  history.replaceState(null, "", `${location.pathname}?v=56`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2662,7 +2663,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=55`);
+  history.replaceState(null, "", `${location.pathname}?v=56`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2730,7 +2731,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=55&${extraQuery}` : "?v=55";
+  const query = extraQuery ? `?v=56&${extraQuery}` : "?v=56";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2925,8 +2926,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v55")) {
-          sessionStorage.setItem("daily-box-reloaded-v55", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v56")) {
+          sessionStorage.setItem("daily-box-reloaded-v56", "1");
           location.reload();
         }
       });
