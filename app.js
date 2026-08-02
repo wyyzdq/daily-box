@@ -1125,9 +1125,26 @@ function renderDetailSheet(date) {
           ${historyHidden("journal") ? "" : `<div class="detail-item"><div><strong>今日小记</strong><span class="subtle">${entry.journal ? escapeHtml(entry.journal).replace(/\n/g, "<br>") : "未记录"}</span></div>${isFuture ? "" : `<button class="ghost" data-action="open-journal" data-date="${date}">${entry.journal ? "编辑" : "添加"}</button>`}</div>`}
           ${historyHidden("todos") ? "" : `<div class="detail-item"><div><strong>今日待办</strong><span class="subtle">${todoSummary(date)}</span></div><button class="ghost" data-action="manage-todos" data-date="${date}">查看</button></div>`}
           ${entry.tarot && !historyHidden("tarot") ? `<div class="detail-item"><div><strong>今日一抽</strong><span class="subtle">${tarotDetailText(entry.tarot)}</span></div></div>` : ""}
-          ${historyHidden("cycle") ? "" : `<div class="detail-item"><div><strong>女性健康</strong><span class="subtle">${cycleDetailText(date)}</span></div><button class="ghost" data-action="open-cycle-day" data-date="${date}">编辑</button></div>`}
+          ${historyHidden("cycle") ? "" : renderCycleDetailItem(date, isFuture)}
         </div>
       </section>
+    </div>`;
+}
+
+function renderCycleDetailItem(date, isFuture) {
+  const cycle = cycleForDate(date);
+  const status = cycle ? cycleDetailText(date) : "当天症状记录";
+  const cycleAction = !cycle ? `<button class="secondary" data-action="start-cycle" data-date="${date}">标记开始</button>` : "";
+  const endAction = cycle && !cycle.endDate ? `<button class="secondary" data-action="end-cycle" data-date="${date}">标记结束</button>` : "";
+  const ended = cycle && cycle.endDate ? `<button class="secondary" disabled>已结束</button>` : "";
+  return `
+    <div class="detail-item">
+      <div><strong>女性健康</strong><span class="subtle">${status}</span></div>
+      ${
+        isFuture
+          ? `<button class="ghost" data-action="open-cycle" data-date="${date}">查看</button>`
+          : `<div class="actions-row">${cycleAction}${endAction}${ended}<button class="ghost" data-action="open-cycle-day" data-date="${date}">记录症状</button><button class="ghost" data-action="open-cycle" data-date="${date}">管理周期</button></div>`
+      }
     </div>`;
 }
 
@@ -1769,10 +1786,7 @@ function editableCycleForDate(date) {
   const containing = state.cycles
     .filter((cycle) => dateInRange(date, cycle.startDate, cycle.endDate || todayKey()))
     .sort((a, b) => cycleSpanDays(b, date) - cycleSpanDays(a, date) || a.startDate.localeCompare(b.startDate))[0];
-  if (containing) return containing;
-  return state.cycles
-    .filter((cycle) => diffDays(date, cycle.startDate) >= 0 && diffDays(date, cycle.startDate) <= 10)
-    .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+  return containing || null;
 }
 
 function ensureCycleForDate(date) {
@@ -2559,7 +2573,7 @@ async function completeCloudLoginFromUrl(client) {
   const authError = searchParams.get("error_description") || hashParams.get("error_description");
   if (authError) {
     alert(`登录链接失效：${authError}`);
-    history.replaceState(null, "", `${location.pathname}?v=53`);
+    history.replaceState(null, "", `${location.pathname}?v=54`);
     return;
   }
 
@@ -2572,7 +2586,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=53`);
+    history.replaceState(null, "", `${location.pathname}?v=54`);
     await syncCloudOnLogin();
     if (otpType === "recovery" || isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(otpType === "recovery" || isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2588,7 +2602,7 @@ async function completeCloudLoginFromUrl(client) {
       return;
     }
     cloudSession = data.session || null;
-    history.replaceState(null, "", `${location.pathname}?v=53`);
+    history.replaceState(null, "", `${location.pathname}?v=54`);
     await syncCloudOnLogin();
     if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
     alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2612,7 +2626,7 @@ async function completeCloudLoginFromUrl(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=53`);
+  history.replaceState(null, "", `${location.pathname}?v=54`);
   await syncCloudOnLogin();
   if (isPasswordRecovery) activeSheet = { kind: "resetPassword" };
   alert(isPasswordRecovery ? "请设置新密码。" : "登录成功。");
@@ -2646,7 +2660,7 @@ async function completeHashLogin(client) {
     return;
   }
   cloudSession = data.session || null;
-  history.replaceState(null, "", `${location.pathname}?v=53`);
+  history.replaceState(null, "", `${location.pathname}?v=54`);
   await syncCloudOnLogin();
   alert("登录成功。");
   render();
@@ -2714,7 +2728,7 @@ async function cloudForgotPassword() {
 function authRedirectUrl(extraQuery = "") {
   const current = `${location.origin}${location.pathname}`;
   const base = location.protocol === "https:" && !location.hostname.includes("localhost") ? current : PUBLIC_APP_URL;
-  const query = extraQuery ? `?v=53&${extraQuery}` : "?v=53";
+  const query = extraQuery ? `?v=54&${extraQuery}` : "?v=54";
   return `${base.replace(/[?#].*$/, "")}${query}`;
 }
 
@@ -2909,8 +2923,8 @@ if ("serviceWorker" in navigator) {
       const worker = registration.installing;
       if (!worker) return;
       worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v53")) {
-          sessionStorage.setItem("daily-box-reloaded-v53", "1");
+        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v54")) {
+          sessionStorage.setItem("daily-box-reloaded-v54", "1");
           location.reload();
         }
       });
