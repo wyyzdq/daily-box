@@ -1139,12 +1139,12 @@ function renderCycleDetailItem(date, isFuture) {
   const ended = cycle && cycle.endDate ? `<button class="secondary" disabled>已结束</button>` : "";
   const deleteAction = cycle ? `<button class="danger" data-action="delete-cycle" data-id="${cycle.id}">删除周期</button>` : "";
   return `
-    <div class="detail-item">
-      <div><strong>女性健康</strong><span class="subtle">${status}</span></div>
+    <div class="detail-item cycle-detail-item">
+      <div class="cycle-detail-copy"><strong>女性健康</strong><span class="subtle">${status}</span></div>
       ${
         isFuture
           ? `<span class="subtle">预测</span>`
-          : `<div class="actions-row">${cycleAction}${endAction}${ended}${cycle ? `<button class="ghost" data-action="open-cycle-day" data-date="${date}">记录症状</button><button class="ghost" data-action="open-cycle" data-date="${date}">管理当前周期</button>${deleteAction}` : ""}</div>`
+          : `<div class="actions-row cycle-detail-actions">${cycleAction}${endAction}${ended}${cycle ? `<button class="ghost" data-action="open-cycle-day" data-date="${date}">记录症状</button><button class="ghost" data-action="open-cycle" data-date="${date}">管理当前周期</button>${deleteAction}` : ""}</div>`
       }
     </div>`;
 }

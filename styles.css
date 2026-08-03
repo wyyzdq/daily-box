@@ -532,6 +532,35 @@ button {
   margin-bottom: 4px;
 }
 
+.cycle-detail-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: start;
+  align-items: start;
+}
+
+.cycle-detail-copy {
+  min-width: 0;
+}
+
+.cycle-detail-actions {
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.cycle-detail-actions .secondary,
+.cycle-detail-actions .ghost,
+.cycle-detail-actions .danger {
+  flex: 0 0 auto;
+  min-width: 88px;
+}
+
+.cycle-detail-actions [data-action="open-cycle"],
+.cycle-detail-actions [data-action="delete-cycle"] {
+  min-width: 132px;
+}
+
 .module-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
