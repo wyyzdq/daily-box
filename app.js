@@ -5,7 +5,7 @@ const DEFAULT_CLOUD_CONFIG = {
   url: "https://rkhumtykgijdwrjtpomn.supabase.co",
   anonKey: "sb_publishable_FWyrLRq60HJYsqD2UNC6nA_vHNPR3rO",
 };
-const PUBLIC_APP_URL = "https://graceful-gelato-458c22.netlify.app/";
+const PUBLIC_APP_URL = "https://daily-box.pages.dev/";
 
 const defaultModules = {
   cycle: { title: "女性健康", mark: "●", color: "var(--rose-strong)" },
@@ -2023,10 +2023,10 @@ function monthStats(year, month) {
 function weeklySummary() {
   const days = Array.from({ length: 7 }, (_, index) => addDays(todayKey(), -6 + index));
   const entries = days.map((date) => state.entries[date]).filter(Boolean);
-  const moodList = entries.map((entry) => entry.mood && entry.mood.mood).filter(Boolean);
-  const fitness = entries.filter((entry) => entry.fitness).length;
-  const studyMinutes = entries.reduce((sum, entry) => sum + ((entry.study && entry.study.durationMinutes) || 0), 0);
-  const outing = entries.filter((entry) => entry.outing).length;
+  const moodList = entries.flatMap((entry) => normalizeMultiRecord(entry.mood, "mood").items).map((item) => item.mood).filter(Boolean);
+  const fitness = entries.filter((entry) => normalizeMultiRecord(entry.fitness, "fitness").items.length > 0).length;
+  const studyMinutes = entries.reduce((sum, entry) => sum + totalMinutes(normalizeMultiRecord(entry.study, "study").items), 0);
+  const outing = entries.reduce((sum, entry) => sum + normalizeMultiRecord(entry.outing, "outing").items.length, 0);
   const todos = days.flatMap((date) => todosForDate(date));
   const custom = entries.reduce((sum, entry) => sum + Object.keys(entry.customRecords || {}).filter((id) => !historyHidden(id)).length, 0);
   if (!entries.length && !todos.length) return "最近还没有留下记录。等你开始记录后，这里会自动长出一段轻轻的回顾。";
