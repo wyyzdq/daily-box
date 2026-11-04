@@ -1,11 +1,13 @@
-const CACHE_NAME = "daily-box-v60";
+const CACHE_NAME = "daily-box-v61";
 const ASSETS = [
-  "./", "./index.html", "./styles.css?v=60", "./app.js?v=60",
-  "./manifest.webmanifest", "./icon-180.png?v=60", "./icon-192.png?v=60",
+  "./", "./styles.css?v=61", "./app.js?v=61",
+  "./manifest.webmanifest", "./icon-180.png?v=61", "./icon-192.png?v=61",
   "./icon-512.png", "./vendor/supabase-2.118.0.min.js",
 ];
 const ASSET_PATHS = new Set(ASSETS.map((path) => new URL(path, self.location).pathname));
-const HOME_URL = new URL("./index.html", self.location).href;
+ASSET_PATHS.add(new URL("./index.html", self.location).pathname);
+// Pages redirects index.html to ./; navigation cannot reuse a followed redirect.
+const HOME_URL = new URL("./", self.location).href;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -30,7 +32,12 @@ self.addEventListener("fetch", (event) => {
     const cache = await caches.open(CACHE_NAME);
     const key = event.request.mode === "navigate" ? HOME_URL : event.request;
     const cached = await cache.match(key);
-    if (cached) return cached;
+    if (cached) {
+      if (event.request.mode === "navigate" && cached.redirected) {
+        return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers: cached.headers });
+      }
+      return cached;
+    }
     const response = await fetch(event.request);
     if (response.ok && response.type === "basic") {
       const copy = response.clone();
