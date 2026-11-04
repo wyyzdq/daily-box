@@ -4,8 +4,10 @@ import { dirname, join } from "node:path";
 const outputDir = "dist-pages";
 const files = [
   "index.html",
+  "update.html",
   "styles.css",
   "app.js",
+  "sync-data.js",
   "sw.js",
   "manifest.webmanifest",
   "icon.svg",

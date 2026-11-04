@@ -1,6 +1,8 @@
 ﻿const STORAGE_KEY = "daily-box-v1-state";
 const CLOUD_CONFIG_KEY = "daily-box-cloud-config";
 const CLOUD_META_KEY = "daily-box-cloud-meta";
+const CLOUD_BASE_KEY = "daily-box-cloud-base-v1";
+const RECOVERY_BACKUPS_KEY = "daily-box-recovery-backups-v1";
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://rkhumtykgijdwrjtpomn.supabase.co",
   anonKey: "sb_publishable_FWyrLRq60HJYsqD2UNC6nA_vHNPR3rO",
@@ -122,6 +124,13 @@ let cloudLibraryPromise = null;
 let cloudSession = null;
 let cloudSyncTimer = null;
 let initialCloudSyncDone = false;
+let cloudOperation = Promise.resolve();
+let cloudSyncNotice = "";
+let cloudConflictCount = 0;
+let pendingCloudConflict = null;
+let cloudSyncProblem = false;
+// Each tab keeps the baseline matching its own in-memory records.
+let cloudBaseSnapshot = (() => { try { return localStorage.getItem(CLOUD_BASE_KEY); } catch { return null; } })();
 
 function loadState() {
   try {
@@ -670,6 +679,7 @@ function renderMine() {
             <button class="secondary" data-action="import-click">导入 JSON</button>
             <input class="file-input" id="importFile" type="file" accept="application/json" />
           </div>
+          ${renderRecoveryBackups()}
         </section>
         <section class="card section-card">
           <div class="card-title"><h2>最近 7 天小结</h2></div>
@@ -695,8 +705,8 @@ function renderMine() {
         </section>
         <section class="card section-card">
           <div class="card-title"><h2>应用数据</h2></div>
-          <p class="summary">已有 ${Object.keys(state.entries).length} 天生活记录，${state.cycles.length} 条周期记录，${state.customModules.filter((module) => module.isDeleted !== true).length} 个自定义模块。</p>
-          <button class="danger" data-action="clear-data" style="margin-top:12px">清空全部数据</button>
+          <p class="summary">已有 ${Object.values(state.entries).filter(DailyBoxSync.entryHasContent).length} 天生活记录，${state.cycles.length} 条周期记录，${state.customModules.filter((module) => module.isDeleted !== true).length} 个自定义模块。</p>
+          <button class="danger" data-action="clear-data" style="margin-top:12px">清空本机数据</button>
         </section>
       </div>
     </main>`;
@@ -727,13 +737,15 @@ function renderCloudSyncCard() {
       ${
         email
           ? `<div class="actions-row" style="margin-top:12px">
-              <button class="secondary" data-action="cloud-push">同步本机数据</button>
+              <button class="secondary" data-action="cloud-push">同步记录</button>
               <button class="ghost" data-action="cloud-pull">从云端恢复</button>
               <button class="ghost" data-action="cloud-logout">退出登录</button>
             </div>
             <p class="summary" style="margin-top:10px">最近同步：${meta.lastSyncedAt ? new Date(meta.lastSyncedAt).toLocaleString() : "还没有同步"}</p>`
           : ""
       }
+      ${email && cloudSyncNotice ? `<p class="summary" role="status">${escapeHtml(cloudSyncNotice)}</p>` : ""}
+      ${email && cloudConflictCount ? `<div class="actions-row"><button class="secondary" data-action="resolve-cloud-conflict" data-preference="local">冲突处保留本机</button><button class="ghost" data-action="resolve-cloud-conflict" data-preference="cloud">冲突处保留云端</button></div><p class="summary">仅选择冲突项目的版本，其余记录合并保留。</p>` : ""}
     </section>`;
 }
 function renderNav() {
@@ -742,7 +754,7 @@ function renderNav() {
       ${navButton("today", "今日", "□")}
       ${navButton("calendar", "日历", "◇")}
       ${navButton("modules", "模块", "▦")}
-      ${navButton("mine", "我的", "○")}
+      ${navButton("mine", cloudSession && cloudSyncProblem ? "我的 · 待处理" : "我的", "○")}
     </nav>`;
 }
 
@@ -1376,6 +1388,8 @@ function handleClick(event) {
   if (action === "set-theme") setTheme(button.dataset.theme);
   if (action === "cloud-push") pushCloudState(true);
   if (action === "cloud-pull") pullCloudState(true);
+  if (action === "resolve-cloud-conflict") pushCloudState(true, button.dataset.preference);
+  if (action === "export-recovery-backup") exportRecoveryBackup(button.dataset.id);
   if (action === "cloud-logout") cloudLogout();
   if (action === "forgot-password") cloudForgotPassword();
   if (action === "toggle-password") {
@@ -2793,7 +2807,6 @@ async function saveNewPassword(data) {
     alert(`密码更新失败：${error.message}`);
     return false;
   }
-  queueCloudSync();
   alert("密码已更新，可以继续使用。");
   return true;
 }
@@ -2826,91 +2839,214 @@ async function cloudLogout() {
   if (client) await client.auth.signOut();
   cloudSession = null;
   initialCloudSyncDone = false;
+  cloudSyncNotice = "";
+  cloudConflictCount = 0;
+  pendingCloudConflict = null;
+  cloudSyncProblem = false;
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
   render();
 }
 
+function syncScope(userId) {
+  return `${cloudConfig().url}|${userId}`;
+}
+
+function getRecoveryBackups() {
+  const saved = JSON.parse(localStorage.getItem(RECOVERY_BACKUPS_KEY) || "[]");
+  if (!Array.isArray(saved)) throw new Error("覆盖前备份格式无法读取。");
+  return saved;
+}
+
+function saveRecoveryBackup(source, payload, userId = cloudSession?.user?.id || "local") {
+  const clean = DailyBoxSync.comparable(normalizeState(DailyBoxSync.validate(payload)));
+  if (!hasMeaningfulState(clean) && DailyBoxSync.equal(clean.settings, normalizeState().settings)) return;
+  try {
+    const backups = getRecoveryBackups();
+    if (backups.some((item) => item.scope === syncScope(userId) && DailyBoxSync.equal(item.payload, clean))) return;
+    backups.unshift({ id: crypto.randomUUID(), source, scope: syncScope(userId), createdAt: new Date().toISOString(), payload: clean });
+    localStorage.setItem(RECOVERY_BACKUPS_KEY, JSON.stringify(backups.slice(0, 5)));
+  } catch {
+    throw new Error("无法保存覆盖前备份，已停止替换和上传。请先导出 JSON 备份并检查设备存储空间。");
+  }
+}
+
+function renderRecoveryBackups() {
+  try {
+    const backups = getRecoveryBackups();
+    if (!backups.length) return "";
+    return `<details style="margin-top:12px"><summary>覆盖前备份（${backups.length} 份）</summary><p class="summary">保存在此浏览器，最多保留最近 5 份。可下载后通过“导入 JSON”恢复；清除网站数据会删除这些备份。</p>${backups.map((item) => `<button class="ghost" data-action="export-recovery-backup" data-id="${escapeHtml(item.id)}">${item.source === "cloud" ? "云端记录" : "本机记录"} · ${escapeHtml(new Date(item.createdAt).toLocaleString())} · 下载</button>`).join("")}</details>`;
+  } catch {
+    return `<p class="summary">覆盖前备份暂时无法读取，请先导出当前记录。</p>`;
+  }
+}
+
+function downloadState(payload, filename) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportRecoveryBackup(id) {
+  const item = getRecoveryBackups().find((backup) => backup.id === id);
+  if (item) downloadState(item.payload, `daily-box-backup-before-${item.source}-${item.createdAt.replace(/[:.]/g, "-")}.json`);
+}
+
+function loadCloudBase(userId) {
+  const saved = JSON.parse(cloudBaseSnapshot || "null");
+  return saved?.scope === syncScope(userId) ? normalizeState(DailyBoxSync.validate(saved.payload)) : normalizeState();
+}
+
+function saveCloudBase(userId, payload, updatedAt) {
+  const snapshot = JSON.stringify({ scope: syncScope(userId), payload, updatedAt });
+  localStorage.setItem(CLOUD_BASE_KEY, snapshot);
+  cloudBaseSnapshot = snapshot;
+  saveCloudMeta({ ownerId: userId });
+}
+
+function updateSyncNotice(message = "", conflicts = 0, problem = false) {
+  cloudSyncNotice = message;
+  cloudConflictCount = conflicts;
+  cloudSyncProblem = problem || conflicts > 0;
+  if (!conflicts) pendingCloudConflict = null;
+  if (view === "mine" && !activeSheet) render();
+  else {
+    const label = document.querySelector('.nav-btn[data-view="mine"] span:last-child');
+    if (label) label.textContent = cloudSession && cloudSyncProblem ? "我的 · 待处理" : "我的";
+  }
+}
+
+function serializeCloudOperation(operation, showAlert = false) {
+  const next = cloudOperation.then(operation).catch((error) => {
+    updateSyncNotice(error.message || "同步未完成，记录仍保留在本机。", 0, true);
+    if (showAlert) alert(error.message || "同步未完成，请稍后重试。");
+    return false;
+  });
+  cloudOperation = next;
+  return next;
+}
+
 function queueCloudSync() {
-  if (cloudSession && !initialCloudSyncDone) return;
   if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  if (!cloudSession || !initialCloudSyncDone || cloudConflictCount) return;
   cloudSyncTimer = setTimeout(() => pushCloudState(false), 1200);
 }
 
-async function syncCloudOnLogin() {
-  const client = await ensureCloudClient();
-  if (!client || !cloudSession) return;
-  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-  const { data, error } = await client.from("daily_box_state").select("payload, updated_at").eq("user_id", cloudSession.user.id).maybeSingle();
-  if (error) {
-    initialCloudSyncDone = true;
-    return;
-  }
-  const localHasData = hasMeaningfulState(state);
-  const cloudState = data && data.payload ? normalizeState(data.payload) : null;
-  const cloudHasData = Boolean(cloudState && hasMeaningfulState(cloudState));
-  const localUpdatedAt = cloudMeta().localUpdatedAt || "";
-  const cloudUpdatedAt = (data && data.updated_at) || "";
-  if (cloudHasData && (!localHasData || (cloudUpdatedAt && (!localUpdatedAt || cloudUpdatedAt > localUpdatedAt)))) {
-    state = cloudState;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    saveCloudMeta({ lastSyncedAt: cloudUpdatedAt || new Date().toISOString(), localUpdatedAt: cloudUpdatedAt || new Date().toISOString() });
-    initialCloudSyncDone = true;
-    render();
-    return;
-  }
-  initialCloudSyncDone = true;
-  if (localHasData && (!cloudHasData || (localUpdatedAt && (!cloudUpdatedAt || localUpdatedAt > cloudUpdatedAt)))) {
-    await pushCloudState(false);
-  }
+function assertSyncAccount(userId) {
+  if (cloudSession?.user?.id !== userId) throw new Error("账号已切换，此次同步已停止。");
+}
+
+async function readCloudRow(client, userId) {
+  const { data, error } = await client.from("daily_box_state").select("payload, updated_at").eq("user_id", userId).maybeSingle();
+  if (error) throw new Error(`读取云端失败：${error.message}`);
+  assertSyncAccount(userId);
+  if (data) DailyBoxSync.validate(data.payload);
+  return data;
 }
 
 function hasMeaningfulState(value) {
   return Boolean(
-    Object.keys(value.entries || {}).length ||
-    (value.cycles || []).length ||
-    (value.todos || []).length ||
-    (value.customModules || []).length ||
-    Object.keys(value.timers || {}).length,
+    Object.values(value.entries || {}).some(DailyBoxSync.entryHasContent) ||
+    (value.cycles || []).length || (value.todos || []).length ||
+    (value.customModules || []).length || Object.keys(value.timers || {}).length,
   );
 }
 
-async function pushCloudState(showAlert = false) {
-  const client = await ensureCloudClient();
-  if (!client || !cloudSession) return;
-  const payload = JSON.parse(JSON.stringify(state));
-  const { error } = await client.from("daily_box_state").upsert(
-    {
-      user_id: cloudSession.user.id,
-      payload,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
-  if (error) {
-    if (showAlert) alert(`上传失败：${error.message}`);
-    return;
-  }
-  saveCloudMeta({ lastSyncedAt: new Date().toISOString() });
-  if (showAlert) alert("已上传到云端。");
+function syncCloudOnLogin() {
+  return pushCloudState(false);
 }
 
-async function pullCloudState(showConfirm = false) {
-  const client = await ensureCloudClient();
-  if (!client || !cloudSession) return;
-  if (showConfirm && !confirm("从云端恢复会覆盖本机当前数据，确定继续吗？")) return;
-  const { data, error } = await client.from("daily_box_state").select("payload, updated_at").eq("user_id", cloudSession.user.id).maybeSingle();
-  if (error) {
-    alert(`读取失败：${error.message}`);
-    return;
-  }
-  if (!data || !data.payload) {
-    alert("云端还没有数据。");
-    return;
-  }
-  state = normalizeState(data.payload);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  saveCloudMeta({ lastSyncedAt: data.updated_at || new Date().toISOString(), localUpdatedAt: new Date().toISOString() });
-  render();
+function pushCloudState(showAlert = false, preference = null) {
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  return serializeCloudOperation(async () => {
+    const client = await ensureCloudClient();
+    const userId = cloudSession?.user?.id;
+    if (!client || !userId) return false;
+    if (cloudMeta().ownerId && cloudMeta().ownerId !== userId) {
+      throw new Error("本机留有另一个账号的记录。请先导出 JSON，再从云端恢复当前账号的记录。");
+    }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const row = await readCloudRow(client, userId);
+      const remote = normalizeState(row ? row.payload : {});
+      const local = DailyBoxSync.comparable(state);
+      if (preference && (attempt > 0 || !pendingCloudConflict || pendingCloudConflict.userId !== userId || pendingCloudConflict.updatedAt !== (row?.updated_at || "") || !DailyBoxSync.equal(pendingCloudConflict.local, local))) preference = null;
+      const merged = DailyBoxSync.merge(loadCloudBase(userId), local, remote, preference);
+      if (merged.conflicts.length && !preference) {
+        saveRecoveryBackup("local", local, userId);
+        saveRecoveryBackup("cloud", remote, userId);
+        pendingCloudConflict = { userId, updatedAt: row?.updated_at || "", local };
+        updateSyncNotice(`有 ${merged.conflicts.length} 处记录在两边都被修改，已暂停同步。请选择冲突处保留哪个版本。`, merged.conflicts.length);
+        initialCloudSyncDone = true;
+        return false;
+      }
+      const payload = normalizeState(merged.value);
+      const sameAsRemote = DailyBoxSync.equal(DailyBoxSync.comparable(payload), DailyBoxSync.comparable(remote));
+      const sameAsLocal = DailyBoxSync.equal(DailyBoxSync.comparable(payload), local);
+      if (!sameAsLocal || !sameAsRemote) saveRecoveryBackup("local", local, userId);
+      if (!sameAsRemote && row) saveRecoveryBackup("cloud", remote, userId);
+      // Persist the merged local copy before advancing its baseline or writing remotely.
+      if (!sameAsLocal) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        state = payload;
+        if (!activeSheet) render();
+      }
+      saveCloudBase(userId, remote, row?.updated_at || "");
+      initialCloudSyncDone = true;
+      if (sameAsRemote || !row && !hasMeaningfulState(payload) && DailyBoxSync.equal(payload.settings, normalizeState().settings)) {
+        saveCloudMeta({ lastSyncedAt: row?.updated_at || cloudMeta().lastSyncedAt || "" });
+        updateSyncNotice("记录已核对，当前本机与云端一致。");
+        if (showAlert) alert("记录已同步。");
+        return true;
+      }
+      const updatedAt = new Date(Math.max(Date.now(), Date.parse(row?.updated_at || "") + 1 || 0)).toISOString();
+      assertSyncAccount(userId);
+      // A changed timestamp or concurrent insertion must never fall back to a blind upsert.
+      const request = row
+        ? client.from("daily_box_state").update({ payload, updated_at: updatedAt }).eq("user_id", userId).eq("updated_at", row.updated_at)
+        : client.from("daily_box_state").insert({ user_id: userId, payload, updated_at: updatedAt });
+      const result = await request.select("updated_at").maybeSingle();
+      assertSyncAccount(userId);
+      if (result.error?.code === "23505" || !result.error && !result.data) continue;
+      if (result.error) throw new Error(`上传失败：${result.error.message}`);
+      saveCloudBase(userId, payload, result.data.updated_at);
+      saveCloudMeta({ lastSyncedAt: result.data.updated_at });
+      updateSyncNotice("记录已合并同步，覆盖前的版本可在“备份与恢复”下载。");
+      if (!DailyBoxSync.equal(DailyBoxSync.comparable(state), DailyBoxSync.comparable(payload))) queueCloudSync();
+      if (showAlert) alert("记录已合并同步。");
+      return true;
+    }
+    throw new Error("云端记录正在被其他设备修改，已停止上传。请稍后再同步。");
+  }, showAlert);
 }
+
+function pullCloudState(showConfirm = false) {
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  return serializeCloudOperation(async () => {
+    const client = await ensureCloudClient();
+    const userId = cloudSession?.user?.id;
+    if (!client || !userId) return false;
+    const row = await readCloudRow(client, userId);
+    const next = row ? normalizeState(row.payload) : null;
+    if (!next || !hasMeaningfulState(next)) {
+      alert("云端没有可恢复的生活记录，本机记录保持不变。");
+      return false;
+    }
+    const days = Object.values(next.entries).filter(DailyBoxSync.entryHasContent).length;
+    if (showConfirm && !confirm(`云端有 ${days} 天生活记录、${next.cycles.length} 条周期和 ${next.todos.length} 条待办。恢复会替换本机当前内容，并先保留本机备份。确定继续吗？`)) return false;
+    saveRecoveryBackup("local", state, cloudMeta().ownerId || userId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    state = next;
+    saveCloudBase(userId, next, row.updated_at);
+    saveCloudMeta({ lastSyncedAt: row.updated_at, localUpdatedAt: row.updated_at });
+    initialCloudSyncDone = true;
+    updateSyncNotice("已从云端恢复，本机原记录已保留在覆盖前备份中。");
+    render();
+    return true;
+  }, true);
+}
+
 
 function formatMinutes(minutes) {
   if (minutes < 60) return `${minutes} 分钟`;
@@ -2920,13 +3056,7 @@ function formatMinutes(minutes) {
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `daily-box-backup-${todayKey()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadState(state, `daily-box-backup-${todayKey()}.json`);
 }
 
 function importData(event) {
@@ -2938,20 +3068,38 @@ function importData(event) {
       const next = JSON.parse(reader.result);
       if (!next.entries || !Array.isArray(next.cycles)) throw new Error("bad shape");
       if (!confirm("导入会覆盖当前数据，确定继续吗？")) return;
-      state = normalizeState(next);
-      saveState();
+      DailyBoxSync.validate(next);
+      saveRecoveryBackup("local", state);
+      const normalized = normalizeState(next);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      state = normalized;
+      localStorage.removeItem(CLOUD_BASE_KEY);
+      cloudBaseSnapshot = null;
+      markLocalChanged();
+      queueCloudSync();
       render();
-    } catch {
-      alert("这个文件看起来不是有效的日常盒子备份。");
+    } catch (error) {
+      alert(error.message?.includes("备份") ? error.message : "这个文件看起来不是有效的日常盒子备份。");
     }
   };
   reader.readAsText(file);
 }
 
 function clearData() {
-  if (!confirm("确定清空全部数据吗？这个操作不能撤销。")) return;
-  state = normalizeState();
-  saveState();
+  if (!confirm("确定清空本机记录吗？会先保留覆盖前备份，云端记录不删除。")) return;
+  try {
+    saveRecoveryBackup("local", state);
+    const next = normalizeState();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    state = next;
+    localStorage.removeItem(CLOUD_BASE_KEY);
+    cloudBaseSnapshot = null;
+    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    initialCloudSyncDone = false;
+    updateSyncNotice("已清空本机记录，云端记录未删除。需要时可从云端恢复。");
+  } catch (error) {
+    alert(error.message || "本机记录未清空，请先检查存储空间。");
+  }
 }
 
 function escapeHtml(value) {
@@ -2961,6 +3109,8 @@ function escapeHtml(value) {
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
 }
+
+window.addEventListener("online", () => { if (cloudSession) syncCloudOnLogin(); });
 
 render();
 

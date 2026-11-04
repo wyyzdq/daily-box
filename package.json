@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test tests/sync.test.cjs",
     "build": "node build.mjs",
     "build:pages": "node cloudflare-pages-build.mjs"
   }

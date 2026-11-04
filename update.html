@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>更新日常小盒</title></head>
+<body style="margin:0;background:#fbf7ee;color:#25251f;font:17px/1.8 system-ui,sans-serif">
+  <main style="max-width:480px;margin:18vh auto;padding:24px">
+    <h1 style="font-size:27px">正在更新日常小盒</h1>
+    <p id="status" role="status">完成后自动进入，你的本机记录会保留。</p>
+    <button id="retry" hidden onclick="location.reload()" style="padding:10px 24px;font:inherit">重试</button>
+  </main>
+  <script>
+    (async () => {
+      if (!('serviceWorker' in navigator)) { location.replace('./'); return; }
+      const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      const version = () => new Promise((resolve) => {
+        const worker = navigator.serviceWorker.controller;
+        if (!worker) { resolve(null); return; }
+        const channel = new MessageChannel();
+        const timer = setTimeout(() => { channel.port1.close(); resolve(null); }, 600);
+        channel.port1.onmessage = (event) => { clearTimeout(timer); channel.port1.close(); resolve(event.data?.cacheName); };
+        worker.postMessage({ kind: 'daily-box-version' }, [channel.port2]);
+      });
+      const started = Date.now();
+      while (Date.now() - started < 25000) {
+        if (await version() === 'daily-box-v62') { location.replace('./'); return; }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      throw new Error('update-timeout');
+    })().catch(() => {
+      document.getElementById('status').textContent = '更新暂未完成，请确认网络后重试。';
+      document.getElementById('retry').hidden = false;
+    });
+  </script>
+</body>
+</html>

@@ -1,13 +1,17 @@
-const CACHE_NAME = "daily-box-v61";
+const CACHE_NAME = "daily-box-v62";
 const ASSETS = [
-  "./", "./styles.css?v=61", "./app.js?v=61",
-  "./manifest.webmanifest", "./icon-180.png?v=61", "./icon-192.png?v=61",
+  "./", "./styles.css?v=62", "./sync-data.js?v=62", "./app.js?v=62",
+  "./manifest.webmanifest", "./icon-180.png?v=62", "./icon-192.png?v=62",
   "./icon-512.png", "./vendor/supabase-2.118.0.min.js",
 ];
 const ASSET_PATHS = new Set(ASSETS.map((path) => new URL(path, self.location).pathname));
 ASSET_PATHS.add(new URL("./index.html", self.location).pathname);
 // Pages redirects index.html to ./; navigation cannot reuse a followed redirect.
 const HOME_URL = new URL("./", self.location).href;
+
+self.addEventListener("message", (event) => {
+  if (event.data?.kind === "daily-box-version") event.ports[0]?.postMessage({ cacheName: CACHE_NAME });
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
