@@ -118,6 +118,7 @@ let calendarFilter = "all";
 let activeSheet = null;
 let timerTicker = null;
 let cloudClient = null;
+let cloudLibraryPromise = null;
 let cloudSession = null;
 let cloudSyncTimer = null;
 let initialCloudSyncDone = false;
@@ -2546,12 +2547,43 @@ function saveCloudConfig(data) {
   };
   localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
   cloudClient = null;
-  initCloudClient();
+  ensureCloudClient();
   alert("云配置已保存。");
 }
 
 function markLocalChanged() {
   saveCloudMeta({ localUpdatedAt: new Date().toISOString() });
+}
+
+function loadCloudLibrary() {
+  if (window.supabase) return Promise.resolve(true);
+  if (cloudLibraryPromise) return cloudLibraryPromise;
+  cloudLibraryPromise = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "./vendor/supabase-2.118.0.min.js";
+    script.async = true;
+    const finish = (loaded) => {
+      clearTimeout(timeout);
+      script.onload = null;
+      script.onerror = null;
+      if (!loaded) {
+        script.remove();
+        cloudLibraryPromise = null;
+      }
+      resolve(loaded);
+    };
+    const timeout = setTimeout(() => finish(false), 12000);
+    script.onload = () => finish(Boolean(window.supabase));
+    script.onerror = () => finish(false);
+    document.head.appendChild(script);
+  });
+  return cloudLibraryPromise;
+}
+
+async function ensureCloudClient() {
+  if (cloudClient) return cloudClient;
+  if (!(await loadCloudLibrary())) return null;
+  return initCloudClient();
 }
 
 function initCloudClient() {
@@ -2563,16 +2595,18 @@ function initCloudClient() {
   });
   completeCloudLoginFromUrl(cloudClient);
   cloudClient.auth.getSession().then(({ data }) => {
+    const previousUserId = cloudSession?.user?.id;
     cloudSession = data.session || null;
     if (cloudSession) syncCloudOnLogin();
-    render();
+    if (previousUserId !== cloudSession?.user?.id) render();
   });
   cloudClient.auth.onAuthStateChange((event, session) => {
+    const previousUserId = cloudSession?.user?.id;
     cloudSession = session || null;
     if (event === "PASSWORD_RECOVERY") activeSheet = { kind: "resetPassword" };
     if (cloudSession && ["INITIAL_SESSION", "SIGNED_IN"].includes(event)) syncCloudOnLogin();
     if (!cloudSession) initialCloudSyncDone = false;
-    render();
+    if (event === "PASSWORD_RECOVERY" || previousUserId !== cloudSession?.user?.id) render();
   });
   return cloudClient;
 }
@@ -2678,7 +2712,7 @@ async function completeHashLogin(client) {
 }
 
 async function cloudPasswordLogin(data) {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   const email = (data.get("email") || "").trim();
   const password = (data.get("password") || "").trim();
   const mode = data.get("cloudMode") || "login";
@@ -2713,7 +2747,7 @@ async function cloudPasswordLogin(data) {
 }
 
 async function cloudForgotPassword() {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   const emailInput = document.querySelector('form[data-action="cloud-login"] input[name="email"]');
   const email = ((emailInput && emailInput.value) || cloudMeta().email || "").trim();
   if (!client) {
@@ -2744,7 +2778,7 @@ function authRedirectUrl(extraQuery = "") {
 }
 
 async function saveNewPassword(data) {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   const password = (data.get("newPassword") || "").trim();
   if (!client) {
     alert("云同步服务还没加载好，请刷新页面再试。");
@@ -2765,7 +2799,7 @@ async function saveNewPassword(data) {
 }
 
 async function cloudLogin(data) {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   const email = (data.get("email") || "").trim();
   if (!client) {
     alert("云同步服务还没加载好，请刷新页面再试。");
@@ -2788,7 +2822,7 @@ async function cloudLogin(data) {
 }
 
 async function cloudLogout() {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   if (client) await client.auth.signOut();
   cloudSession = null;
   initialCloudSyncDone = false;
@@ -2802,7 +2836,7 @@ function queueCloudSync() {
 }
 
 async function syncCloudOnLogin() {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   if (!client || !cloudSession) return;
   if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
   const { data, error } = await client.from("daily_box_state").select("payload, updated_at").eq("user_id", cloudSession.user.id).maybeSingle();
@@ -2840,7 +2874,7 @@ function hasMeaningfulState(value) {
 }
 
 async function pushCloudState(showAlert = false) {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   if (!client || !cloudSession) return;
   const payload = JSON.parse(JSON.stringify(state));
   const { error } = await client.from("daily_box_state").upsert(
@@ -2860,7 +2894,7 @@ async function pushCloudState(showAlert = false) {
 }
 
 async function pullCloudState(showConfirm = false) {
-  const client = initCloudClient();
+  const client = await ensureCloudClient();
   if (!client || !cloudSession) return;
   if (showConfirm && !confirm("从云端恢复会覆盖本机当前数据，确定继续吗？")) return;
   const { data, error } = await client.from("daily_box_state").select("payload, updated_at").eq("user_id", cloudSession.user.id).maybeSingle();
@@ -2928,23 +2962,17 @@ function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
 }
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").then((registration) => {
-    registration.addEventListener("updatefound", () => {
-      const worker = registration.installing;
-      if (!worker) return;
-      worker.addEventListener("statechange", () => {
-        if (worker.state === "activated" && navigator.serviceWorker.controller && !sessionStorage.getItem("daily-box-reloaded-v57")) {
-          sessionStorage.setItem("daily-box-reloaded-v57", "1");
-          location.reload();
-        }
-      });
-    });
-  }).catch(() => {});
-}
-
-initCloudClient();
 render();
+
+// Let the local interface paint before loading account and sync support.
+requestAnimationFrame(() => {
+  setTimeout(() => {
+    ensureCloudClient();
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    }
+  }, 0);
+});
 
 
 

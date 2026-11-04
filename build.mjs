@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
 import { extname } from "node:path";
 
-const files = ["index.html", "styles.css", "app.js", "sw.js", "manifest.webmanifest", "icon.svg"];
+const files = ["index.html", "styles.css", "app.js", "sw.js", "manifest.webmanifest", "icon.svg", "vendor/supabase-2.118.0.min.js", "vendor/SUPABASE-LICENSE.txt"];
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",

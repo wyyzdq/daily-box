@@ -35,7 +35,7 @@
 | --- | --- |
 | 现代 Chrome / Edge 等浏览器 | 运行页面和本地存储 |
 | Python 3 | 提供本地静态 HTTP 服务 |
-| Supabase JS v2 | index.html 通过 CDN 加载，用于认证和云同步 |
+| Supabase JS 2.118.0 | 随源码提供于 vendor，首页显示后加载，用于认证和云同步 |
 | Supabase 服务 | 可选的账号与云数据库 |
 | Node.js | 运行 Cloudflare 发布脚本；本地预览无需 Node.js |
 | Git | 克隆仓库和查看版本历史 |
@@ -65,6 +65,12 @@
 - Root directory：仓库根目录。
 
 2026-08-03 从 Netlify 迁移到 Cloudflare Pages。旧 Netlify 地址只用于历史记录。
+
+### 首页加载与版本恢复
+
+首页先读取本地记录并显示界面，再加载随站点提供的 Supabase JS 2.118.0。组件文件和 MIT 许可证在 `vendor/`；运行时无需访问 jsDelivr。首次成功缓存后，页面及静态资源优先从缓存打开，账号与云端数据请求仍走网络。发布更新时须同步修改 `sw.js` 的缓存名称、预缓存资源版本以及 `index.html` 的资源版本。
+
+本次加载优化前的版本保存为 Git 标记 `before-startup-2026-11-04`（`7e4a73e`）。需要恢复时，撤销本次优化提交并推送 main，Cloudflare Pages 会重新部署；下次打开页面后浏览器会更新缓存。本地记录和登录使用的存储键保持原值。
 
 ## 开发过程与复现材料
 

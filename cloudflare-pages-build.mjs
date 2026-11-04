@@ -1,5 +1,5 @@
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const outputDir = "dist-pages";
 const files = [
@@ -12,12 +12,15 @@ const files = [
   "icon-180.png",
   "icon-192.png",
   "icon-512.png",
+  "vendor/supabase-2.118.0.min.js",
+  "vendor/SUPABASE-LICENSE.txt",
 ];
 
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(outputDir, { recursive: true });
 
 for (const file of files) {
+  mkdirSync(dirname(join(outputDir, file)), { recursive: true });
   copyFileSync(file, join(outputDir, file));
 }
 
